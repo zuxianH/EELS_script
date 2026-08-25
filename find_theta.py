@@ -85,17 +85,17 @@ def tacaw_theta_grid(V, Lx, Ly, theta_max=100):
     Example
     V = 60000  # 60 keV
 
-Lx = 39.09047055906947
-Ly = 39.09515918269145
+    Lx = 39.09047055906947
+    Ly = 39.09515918269145
 
-theta_x, theta_y, Theta_x, Theta_y, Theta = tacaw_theta_grid(
-    V,
-    Lx,
-    Ly,
-    theta_max=100
-)
+    theta_x, theta_y, Theta_x, Theta_y, Theta = tacaw_theta_grid(
+        V,
+        Lx,
+        Ly,
+        theta_max=100
+    )
 
-print(theta_x.shape)
-print(theta_y.shape)
-print(theta_x[0], theta_x[-1])
+    print(theta_x.shape)
+    print(theta_y.shape)
+    print(theta_x[0], theta_x[-1])
     '''
