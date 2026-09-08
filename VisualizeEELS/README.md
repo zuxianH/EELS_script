@@ -24,6 +24,15 @@ Open http://localhost:8501. Stop the server with Ctrl+C. The server binds to you
 
 To smooth/broaden spectra, enable **Gaussian broadening → Broaden EELS spectrum** in the sidebar and enter **Gaussian σ (meV)**. This is the Gaussian standard deviation; the equivalent FWHM is displayed below it. Broadening starts disabled. It applies to linear EELS intensity after detector integration and before log display, and uses each file's energy spacing. The diffraction preview stays unchanged. All plots and downloads include broadening when enabled; turn it off to recover unbroadened spectra. NPZ metadata records sigma and the boundary settings.
 
+To apply the temperature-dependent correction, enable **Detailed balance → Apply detailed-balance factor** in the sidebar. Set **Temperature (K)** separately for every file; names containing `_T300K_`, for example, prefill 300 K. Unrecognized temperatures must be entered manually. All probes from a file use that file's temperature. The option starts disabled and multiplies the linear spectrum by
+
+```text
+f(E,T) = βE / (1 − exp(−βE)),  β = 1/(k_B T)
+k_B ≈ 0.08617333262 meV/K
+```
+
+Energy is in meV, positive energy denotes loss, and temperature must be positive. The factor at zero energy is exactly 1; evaluation is stable near zero and for large negative βE. Correction follows detector integration, optional full-probe normalization, and FFT ordering, and precedes Gaussian broadening and log display. The corrected spectrum is not renormalized. Use this option for input spectra that still require this factor. It affects every spectrum plot and download; the diffraction preview continues to show raw planes. NPZ metadata records whether correction was enabled, the formula, and each file/curve's temperature. Disable it to recover the original processing.
+
 The Gaussian kernel extends to four standard deviations and uses reflecting boundaries. This preserves the sum of the recorded intensities without wrapping the high-energy endpoint to the low-energy endpoint. Features close to either endpoint depend on this boundary assumption. Sigma must not exceed the recorded energy span, and broadening requires at least two bins.
 
 Supported arrays:

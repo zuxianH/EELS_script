@@ -14,7 +14,8 @@ import streamlit as st
 from eels_core import (
     circular_detector_mask, detector_center, diffraction_pattern, display_intensity,
     detector_offsets_from_click, energy_loss_axis_mev, export_csv, export_npz,
-    extract_spectrum, gaussian_broaden_spectrum, inspect_scan,
+    extract_spectrum, gaussian_broaden_spectrum, inspect_scan, detailed_balance_factor,
+    KB_MEV_PER_K,
 )
 from detector_click import register_detector_click_bridge
 
@@ -81,6 +82,11 @@ def intensity_label(mode, normalize):
 def suggested_label(path):
     match = re.search(r"(?:^|_)T(\d+(?:\.\d+)?)K(?:_|$)", Path(path).stem)
     return f"{match[1]} K" if match else Path(path).stem
+
+
+def suggested_temperature(path):
+    match = re.search(r"(?:^|_)T(\d+(?:\.\d+)?)K(?:_|$)", Path(path).stem)
+    return float(match[1]) if match and float(match[1]) > 0 else None
 
 
 def index_control(label, count, key):
@@ -203,6 +209,24 @@ with st.sidebar:
         st.caption("Confirm these values for your simulation. .npy arrays do not store time calibration. Applied to every selected file.")
         ordering = st.selectbox("Input energy ordering", ["FFT-shifted (notebook default)", "Unshifted FFT"])
 
+    with st.expander("Detailed balance", expanded=True):
+        apply_detailed_balance = st.checkbox("Apply detailed-balance factor", value=False,
+                                             key="apply_detailed_balance")
+        st.latex(r"f(E,T)=\frac{\beta E}{1-e^{-\beta E}},\qquad \beta=(k_B T)^{-1}")
+        temperatures = {}
+        st.caption("Set each scan's temperature in kelvin. Values inferred from T…K filenames are editable. Positive energy means loss; f(0,T) = 1. Applied before Gaussian broadening and log display.")
+        for info, label in zip(infos, labels):
+            temperature = st.number_input(
+                f"Temperature (K) · {label}", min_value=0.000001,
+                value=suggested_temperature(info.path), step=1.0, format="%.6f",
+                key=f"temperature:{info.path}", placeholder="Enter temperature in K",
+                disabled=not apply_detailed_balance)
+            if apply_detailed_balance:
+                temperatures[info.path] = temperature
+        if apply_detailed_balance and any(t is None for t in temperatures.values()):
+            st.info("Enter a positive temperature for every selected scan to apply detailed balance.")
+            st.stop()
+
     with st.expander("Gaussian broadening", expanded=True):
         broaden = st.checkbox("Broaden EELS spectrum", value=False)
         sigma_input = st.number_input("Gaussian σ (meV)", min_value=0.0, value=1.0, step=0.5,
@@ -214,7 +238,14 @@ with st.sidebar:
 settings = dict(detector_radius_px=radius, center_offset_px=offset_px, center_offset_py=offset_py,
                 normalize_3d=normalize, sample=sample, probe_x_indices=probe_xs,
                 probe_y=probe_y, timestep_fs=timestep, stride=stride, input_energy_ordering=ordering,
-                gaussian_sigma_mev=sigma_mev, gaussian_boundary="reflect", gaussian_truncate=4.0)
+                gaussian_sigma_mev=sigma_mev, gaussian_boundary="reflect", gaussian_truncate=4.0,
+                detailed_balance_enabled=apply_detailed_balance,
+                detailed_balance_temperatures_k=temperatures,
+                detailed_balance_formula="beta*E / (1 - exp(-beta*E)); f(0)=1",
+                boltzmann_constant_mev_per_k=KB_MEV_PER_K,
+                processing_order=["detector integration / optional full-probe normalization",
+                                  "energy ordering", "optional detailed balance",
+                                  "optional Gaussian broadening", "display transform"])
 curves = []
 try:
     with st.spinner("Integrating detector intensities…"):
@@ -222,15 +253,20 @@ try:
             xs = probe_xs if len(info.shape) == 6 else [0]
             s, y = (sample, probe_y) if len(info.shape) == 6 else (0, 0)
             energy = energy_loss_axis_mev(info.canonical_shape[1], timestep, stride)
+            factor = detailed_balance_factor(energy, temperatures[info.path]) if apply_detailed_balance else None
             for x in xs:
                 intensity = cached_spectrum(info, s, x, y, radius, offset_px, offset_py, normalize)
                 if ordering == "Unshifted FFT":
                     intensity = np.fft.fftshift(intensity)
+                if factor is not None:
+                    intensity = intensity * factor
                 if sigma_mev > 0:
                     intensity = gaussian_broaden_spectrum(energy, intensity, sigma_mev)
                 name = f"{label} · x={x}, y={y}" if len(info.shape) == 6 else label
                 curves.append(dict(label=name, path=info.path, sample=s, probe_x=x, probe_y=y,
-                                   energy=energy, intensity=intensity))
+                                   energy=energy, intensity=intensity,
+                                   detailed_balance_enabled=apply_detailed_balance,
+                                   temperature_k=temperatures.get(info.path)))
 except (OSError, ValueError, IndexError) as exc:
     st.error(f"Could not extract spectra: {exc}")
     st.stop()
@@ -306,6 +342,9 @@ with spectrum_tab:
     st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False,
                     "toImageButtonOptions": {"format": "svg", "filename": "eels_spectra"}})
     st.caption("Drag to zoom · double-click to reset · click a legend entry to hide a curve. Downloads include every selected curve.")
+    if apply_detailed_balance:
+        st.caption("Detailed-balance correction active: " + "; ".join(
+            f"{label}: {temperatures[info.path]:g} K" for info, label in zip(infos, labels)))
     if sigma_mev > 0:
         st.caption(f"Gaussian broadening active: σ = {sigma_mev:g} meV (FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV).")
     if mode == "log10" and any(np.any(c["intensity"] <= 0) for c in curves):
@@ -315,6 +354,8 @@ with spectrum_tab:
     settings["plot"] = dict(mode=mode, x_limits=x_limits, y_limits=y_limits, show_hover_details=show_hover)
     with st.expander("Export spectra & figures", expanded=True):
         st.caption("Data exports contain the full energy range and linear intensities. Figures use the display controls above; browser-only zoom and legend changes are not applied.")
+        if apply_detailed_balance:
+            st.caption("All downloads include the detailed-balance factor at each scan's temperature. NPZ records the temperatures and correction settings.")
         if sigma_mev > 0:
             st.caption(f"All downloads include Gaussian broadening (σ = {sigma_mev:g} meV). Turn broadening off to export unbroadened spectra; NPZ records the processing settings.")
         exports = st.columns(5)
@@ -400,6 +441,7 @@ with details_tab:
 - Full-probe normalization divides by the sum over **all energy bins and all pixels** at that probe.
 - Energy is `fftshift(fftfreq(n_energy, timestep_fs × stride / 1000)) × 4.13566769692386` in meV.
 - Input intensities are assumed FFT-shifted by default, as in the notebook. Choose unshifted only if your simulation output uses raw FFT ordering.
+- Optional detailed balance multiplies linear intensity by `βE / (1 − exp(−βE))`, with `β = 1/(k_B T)`, energy in meV, and a separate temperature in kelvin for each file. Positive energy means loss; the zero-energy factor is 1. It is applied after energy ordering and before Gaussian broadening, without renormalizing the corrected spectrum. Enable this only for spectra that still need this correction.
 - Optional Gaussian broadening operates on linear EELS intensity after detector integration and before log display. σ is entered in meV and converted to bins using each file's energy spacing. The kernel extends to 4σ; reflecting boundaries preserve the recorded sum without wrapping between energy endpoints. Edge features can be affected by this boundary assumption.
 
 Files are memory-mapped and integrated in small energy blocks. Changing the plot or preview reuses cached spectra.

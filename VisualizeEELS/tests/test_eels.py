@@ -8,7 +8,7 @@ import pytest
 from eels_core import (
     circular_detector_mask, diffraction_pattern, energy_loss_axis_mev,
     detector_offsets_from_click, export_csv, export_npz, extract_spectrum,
-    gaussian_broaden_spectrum, inspect_scan,
+    gaussian_broaden_spectrum, inspect_scan, detailed_balance_factor, KB_MEV_PER_K,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -66,6 +66,38 @@ def test_click_coordinates_and_mixed_planes():
         detector_offsets_from_click((267, 266), 173, 93, [(267, 266), (9, 8)])
     with pytest.raises(ValueError, match="inside"):
         detector_offsets_from_click((267, 266), -1, 93, [(267, 266)])
+
+
+@pytest.mark.parametrize("temperature", [10.0, 300.0, 1000.0])
+def test_detailed_balance_formula_and_gain_loss(temperature):
+    energy = np.array([1.0, 10.0, 100.0])
+    # Independent conversion from the exact SI Boltzmann/elementary-charge values.
+    x = energy / ((1.380649e-23 / 1.602176634e-22) * temperature)
+    loss = detailed_balance_factor(energy, temperature)
+    gain = detailed_balance_factor(-energy, temperature)
+    np.testing.assert_allclose(loss, x / (1 - np.exp(-x)), rtol=1e-10)
+    np.testing.assert_allclose(gain / loss, np.exp(-x), rtol=1e-12)
+    assert np.all(loss > 1) and np.all(gain < 1)
+
+
+def test_detailed_balance_zero_and_extreme_energies():
+    x = np.array([-1e6, -1e-12, 0.0, 1e-12, 1e6])
+    with np.errstate(all="raise"):
+        factor = detailed_balance_factor(x * KB_MEV_PER_K, 1.0)
+    np.testing.assert_allclose(factor, [0, 1 - 0.5e-12, 1, 1 + 0.5e-12, 1e6], rtol=1e-15)
+    assert factor[2] == 1
+
+
+@pytest.mark.parametrize("temperature", [0, -1, np.nan, np.inf])
+def test_detailed_balance_invalid_temperature(temperature):
+    with pytest.raises(ValueError, match="temperature"):
+        detailed_balance_factor([0, 1], temperature)
+
+
+@pytest.mark.parametrize("energy", [[], [[1]], [np.nan], [np.inf]])
+def test_detailed_balance_invalid_energy(energy):
+    with pytest.raises(ValueError, match="energy axis"):
+        detailed_balance_factor(energy, 300)
 
 
 def test_gaussian_broadening_shape_and_units():
@@ -169,9 +201,13 @@ def test_exports_different_energy_lengths():
     assert rows[0]["label"] == "Test, 5"
 
 
-def test_app_real_files():
+def test_app_scan_selection(tmp_path):
     from streamlit.testing.v1 import AppTest
+    # Keep UI coverage independent of untracked simulation data on disk.
+    for name in ("scan_T300K", "scan_T1000K"):
+        np.save(tmp_path / f"{name}.npy", np.ones((600, 9, 8)))
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
+    next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
     assert not app.exception
     assert not app.error
     assert app.metric[0].value == "2"
@@ -200,6 +236,8 @@ def test_app_six_dimensional_files(tmp_path):
     next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
     assert not app.exception
     assert not app.error
+
+
     app.multiselect(key="probe_x").set_value([0, 1]).run()
     assert not app.exception
     assert app.metric[1].value == "4"
@@ -212,3 +250,68 @@ def test_app_six_dimensional_files(tmp_path):
     next(w for w in app.text_input if w.label == "Data folder").set_value(str(ROOT)).run()
     assert not app.exception
     assert not app.error
+
+
+def test_app_detailed_balance_processing_and_exports(tmp_path):
+    from streamlit.testing.v1 import AppTest
+    from unittest.mock import patch
+
+    for temperature in (300, 1000):
+        np.save(tmp_path / f"scan_T{temperature}K.npy",
+                np.arange(1, 22, dtype=float).reshape(1, 21, 1, 1, 1, 1))
+    with patch("eels_core.export_npz", wraps=export_npz) as exported:
+        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
+        next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
+        assert not app.exception and not app.error
+        original, settings = exported.call_args.args
+        assert settings["detailed_balance_enabled"] is False
+        app.checkbox(key="apply_detailed_balance").check().run()
+        assert not app.exception and not app.error
+        corrected, settings = exported.call_args.args
+        assert settings["detailed_balance_enabled"] is True
+        for before, after in zip(original, corrected):
+            temperature = 1000.0 if "T1000K" in after["path"] else 300.0
+            assert after["temperature_k"] == temperature
+            np.testing.assert_allclose(after["intensity"], before["intensity"] *
+                                       detailed_balance_factor(after["energy"], temperature))
+        edited_path = corrected[0]["path"]
+        app.number_input(key=f"temperature:{edited_path}").set_value(150.0).run()
+        next(w for w in app.selectbox if w.label == "Input energy ordering").select("Unshifted FFT").run()
+        next(w for w in app.checkbox if w.label == "Broaden EELS spectrum").check().run()
+        next(w for w in app.number_input if w.label == "Gaussian σ (meV)").set_value(15.0).run()
+        assert not app.exception and not app.error
+        processed, settings = exported.call_args.args
+        for before, after in zip(original, processed):
+            expected = gaussian_broaden_spectrum(
+                after["energy"], np.fft.fftshift(before["intensity"]) *
+                detailed_balance_factor(after["energy"], after["temperature_k"]), 15.0)
+            np.testing.assert_allclose(after["intensity"], expected)
+        with np.load(io.BytesIO(export_npz(processed, settings)), allow_pickle=False) as result:
+            metadata = json.loads(str(result["metadata_json"]))
+            assert metadata["curves"][0]["temperature_k"] == 150.0
+            assert metadata["settings"]["detailed_balance_temperatures_k"][edited_path] == 150.0
+            np.testing.assert_allclose(result["curve_000"][:, 1], processed[0]["intensity"])
+        app.checkbox(key="apply_detailed_balance").uncheck().run()
+        restored, settings = exported.call_args.args
+        assert settings["detailed_balance_enabled"] is False
+        for before, after in zip(original, restored):
+            np.testing.assert_allclose(after["intensity"], gaussian_broaden_spectrum(
+                before["energy"], np.fft.fftshift(before["intensity"]), 15.0))
+        app.checkbox(key="apply_detailed_balance").check().run()
+        assert app.number_input(key=f"temperature:{edited_path}").value == 150.0
+        assert not app.exception and not app.error
+
+
+def test_app_detailed_balance_requires_unknown_temperature(tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    path = tmp_path / "unknown.npy"
+    np.save(path, np.ones((7, 3, 3)))
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
+    next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
+    app.checkbox(key="apply_detailed_balance").check().run()
+    assert not app.exception and not app.error
+    assert any("Enter a positive temperature" in item.value for item in app.info)
+    app.number_input(key=f"temperature:{path}").set_value(250.0).run()
+    assert not app.exception and not app.error
+    assert app.metric[1].value == "1"

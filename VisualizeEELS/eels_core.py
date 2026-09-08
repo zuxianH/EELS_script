@@ -6,7 +6,37 @@ import io
 import csv
 
 import numpy as np
+from scipy.constants import physical_constants
 from scipy.ndimage import gaussian_filter1d
+
+
+KB_MEV_PER_K = physical_constants["Boltzmann constant in eV/K"][0] * 1000.0
+
+
+def detailed_balance_factor(energy_mev, temperature_k):
+    """Return beta*E / (1 - exp(-beta*E)), with positive E denoting loss.
+
+    Energy is in meV and temperature in kelvin. The zero-energy limit is 1.
+    Separate gain/loss branches avoid exponential overflow at low temperature.
+    """
+    energy = np.asarray(energy_mev, dtype=float)
+    if energy.ndim != 1 or not energy.size or not np.isfinite(energy).all():
+        raise ValueError("Detailed balance requires a nonempty, finite 1D energy axis")
+    if not np.isfinite(temperature_k) or temperature_k <= 0:
+        raise ValueError("Detailed-balance temperature must be finite and positive (K)")
+    with np.errstate(over="ignore", divide="ignore", invalid="ignore"):
+        x = energy / (KB_MEV_PER_K * temperature_k)
+    if not np.isfinite(x).all():
+        raise ValueError("Energy / (k_B T) exceeds the supported numeric range")
+    magnitude = np.abs(x)
+    factor = np.ones_like(x)
+    nonzero = magnitude > 0
+    # expm1 retains precision near zero; its argument is always nonpositive.
+    with np.errstate(under="ignore"):
+        factor[nonzero] = magnitude[nonzero] / -np.expm1(-magnitude[nonzero])
+        gain = x < 0
+        factor[gain] *= np.exp(x[gain])
+    return factor
 
 
 @dataclass(frozen=True)
