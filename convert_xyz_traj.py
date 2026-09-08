@@ -31,6 +31,8 @@ CELL_RE = re.compile(
     rf"CELL\(abcABC\):\s*{CELL_FIELDS}",
     re.IGNORECASE,
 )
+LATTICE_RE = re.compile(r'\bLattice\s*=\s*"([^"]+)"', re.IGNORECASE)
+PBC_RE = re.compile(r'\bpbc\s*=\s*"([^"]+)"', re.IGNORECASE)
 POSITION_UNIT_RE = re.compile(r"positions\{([^}]+)\}", re.IGNORECASE)
 CELL_UNIT_RE = re.compile(r"cell\{([^}]+)\}", re.IGNORECASE)
 STEP_RE = re.compile(r"\bStep:\s*(-?\d+)", re.IGNORECASE)
@@ -43,14 +45,16 @@ def unit_scale(unit: str | None, *, quantity: str) -> float:
         return 1.0
 
     normalized = unit.strip().lower().replace("-", "_")
-    if normalized in {"angstrom", "angstroms", "ang", "a"}:
+    if normalized in {"angstrom", "angstroms", "ang", "a", "ase"}:
         return 1.0
     if normalized in {"atomic_unit", "atomic_units", "bohr", "a0", "au"}:
         return Bohr
     raise ValueError(f"unsupported {quantity} unit {unit!r}")
 
 
-def parse_comment(comment: str) -> tuple[np.ndarray | None, bool, float, dict]:
+def parse_comment(
+    comment: str,
+) -> tuple[np.ndarray | None, bool | np.ndarray, float, dict]:
     """Extract cell, PBC, position scale, and useful metadata from a comment."""
     info: dict[str, int | str] = {"xyz_comment": comment.rstrip("\n")}
 
@@ -67,17 +71,42 @@ def parse_comment(comment: str) -> tuple[np.ndarray | None, bool, float, dict]:
         quantity="position",
     )
 
-    cell_match = CELL_RE.search(comment)
-    if not cell_match:
-        return None, False, position_scale, info
-
-    cellpar = np.asarray(cell_match.groups(), dtype=float)
     cell_unit_match = CELL_UNIT_RE.search(comment)
-    cellpar[:3] *= unit_scale(
+    cell_scale = unit_scale(
         cell_unit_match.group(1) if cell_unit_match else None,
         quantity="cell",
     )
-    return cellpar_to_cell(cellpar), True, position_scale, info
+
+    # Extended XYZ stores the three cell vectors as a row-major 3x3 matrix.
+    lattice_match = LATTICE_RE.search(comment)
+    if lattice_match:
+        lattice = np.fromstring(lattice_match.group(1), sep=" ")
+        if lattice.size != 9:
+            raise ValueError(
+                f"expected 9 Lattice values, found {lattice.size}"
+            )
+        pbc_match = PBC_RE.search(comment)
+        if pbc_match:
+            pbc_fields = pbc_match.group(1).split()
+            if len(pbc_fields) != 3:
+                raise ValueError(
+                    f"expected 3 pbc values, found {len(pbc_fields)}"
+                )
+            pbc = np.asarray(
+                [field.lower() in {"t", "true", "1"} for field in pbc_fields]
+            )
+        else:
+            pbc = np.ones(3, dtype=bool)
+        return lattice.reshape(3, 3) * cell_scale, pbc, position_scale, info
+
+    # Original i-PI XYZ format stores cell lengths and angles instead.
+    cell_match = CELL_RE.search(comment)
+    if cell_match:
+        cellpar = np.asarray(cell_match.groups(), dtype=float)
+        cellpar[:3] *= cell_scale
+        return cellpar_to_cell(cellpar), True, position_scale, info
+
+    return None, False, position_scale, info
 
 
 def read_xyz_frames(path: Path) -> Iterator[Atoms]:
