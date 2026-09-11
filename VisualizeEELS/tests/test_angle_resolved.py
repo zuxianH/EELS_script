@@ -16,8 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.mark.parametrize("shape", [(75, 7, 11), (2, 75, 3, 2, 7, 11)])
 @pytest.mark.parametrize("retain_axis", ["px", "py"])
 @pytest.mark.parametrize("normalize", [False, True])
-def test_rectangle_map_matches_numpy(tmp_path, shape, retain_axis, normalize):
-    data = np.random.default_rng(42).uniform(0.1, 5, shape).astype(np.float32)
+@pytest.mark.parametrize("order", ["C", "F"])
+def test_rectangle_map_matches_numpy(tmp_path, shape, retain_axis, normalize, order):
+    data = np.random.default_rng(42).uniform(0.1, 5, shape).astype(np.float32, order=order)
     path = tmp_path / "scan.npy"
     np.save(path, data)
     sample, x, y = (1, 2, 1) if len(shape) == 6 else (0, 0, 0)

@@ -1,5 +1,6 @@
 import io
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -162,6 +163,8 @@ def test_invalid_data_and_indices(tmp_path):
     data = np.ones((5, 7, 8))
     data[0, 3, 4] = np.nan
     np.save(path, data)
+    # Make the metadata change deterministic even on coarse filesystem clocks.
+    os.utime(path, ns=(info.mtime_ns + 1_000_000_000, info.mtime_ns + 1_000_000_000))
     with pytest.raises(ValueError, match="File changed"):
         extract_spectrum(info)
     with pytest.raises(ValueError, match="NaN"):
@@ -230,26 +233,36 @@ def test_app_scan_selection(tmp_path):
 
 def test_app_six_dimensional_files(tmp_path):
     from streamlit.testing.v1 import AppTest
+    from unittest.mock import patch
+
     for name, shape in [("a", (2, 7, 3, 2, 9, 8)), ("b", (2, 6, 2, 2, 9, 8))]:
         np.save(tmp_path / f"{name}.npy", np.random.default_rng(2).uniform(1, 2, shape))
-    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
-    next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
-    assert not app.exception
-    assert not app.error
-
-
-    app.multiselect(key="probe_x").set_value([0, 1]).run()
-    assert not app.exception
-    assert app.metric[1].value == "4"
-    app.number_input(key="sample").set_value(1).run()
-    app.number_input(key="probe_y").set_value(1).run()
-    assert not app.exception
-    assert not app.error
-    next(w for w in app.selectbox if w.label == "Input energy ordering").select("Unshifted FFT").run()
-    assert not app.exception
-    next(w for w in app.text_input if w.label == "Data folder").set_value(str(ROOT)).run()
-    assert not app.exception
-    assert not app.error
+    with patch("eels_core.export_npz", wraps=export_npz) as exported:
+        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
+        next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
+        assert not app.exception and not app.error
+        positions = [(0, 1), (1, 0)]
+        app.multiselect(key="probe_positions").set_value(positions).run()
+        assert not app.exception and not app.error
+        assert app.metric[1].value == "4"
+        assert all(w.label not in ("Sample index", "Probe y index") for w in app.number_input)
+        curves, settings = exported.call_args.args
+        assert settings["probe_positions_xy"] == positions
+        assert [(c["probe_x"], c["probe_y"]) for c in curves] == positions * 2
+        for curve in curves:
+            expected = extract_spectrum(inspect_scan(curve["path"]),
+                                        probe_x=curve["probe_x"], probe_y=curve["probe_y"])
+            np.testing.assert_allclose(curve["intensity"], expected)
+            assert f'x={curve["probe_x"]}, y={curve["probe_y"]}' in curve["label"]
+        next(w for w in app.selectbox if w.label == "Preview spectrum").select(1).run()
+        assert not app.exception and not app.error
+        next(w for w in app.selectbox if w.label == "Input energy ordering").select("Unshifted FFT").run()
+        assert not app.exception and not app.error
+        app.multiselect(key="probe_positions").set_value([]).run()
+        assert any("Select at least one probe position" in message.value for message in app.info)
+        assert not app.exception
+        next(w for w in app.text_input if w.label == "Data folder").set_value(str(ROOT)).run()
+        assert not app.exception and not app.error
 
 
 def test_app_detailed_balance_processing_and_exports(tmp_path):

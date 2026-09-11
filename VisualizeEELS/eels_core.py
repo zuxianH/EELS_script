@@ -5,6 +5,8 @@ import json
 import io
 import csv
 
+from scan_reader import ScanReader
+
 import numpy as np
 from scipy.constants import physical_constants
 from scipy.ndimage import gaussian_filter1d
@@ -57,22 +59,9 @@ class ScanInfo:
 
 def inspect_scan(path):
     path = Path(path).expanduser().resolve()
-    scan = np.load(path, mmap_mode="r", allow_pickle=False)
-    try:
-        if not isinstance(scan, np.ndarray):
-            raise ValueError("Expected a .npy array, not an archive")
-        if scan.ndim not in (3, 6) or any(n == 0 for n in scan.shape):
-            raise ValueError(
-                f"Expected (energy, px, py) or (sample, energy, probe_x, probe_y, px, py); got {scan.shape}"
-            )
-        if scan.dtype.kind not in "fiu":
-            raise ValueError(f"Expected real numeric intensities; got {scan.dtype}")
-        stat = path.stat()
-        return ScanInfo(str(path), scan.shape, str(scan.dtype), stat.st_mtime_ns, stat.st_size)
-    finally:
-        if hasattr(scan, "close"):
-            scan.close()
-        del scan
+    scan = ScanReader(path)
+    stat = path.stat()
+    return ScanInfo(str(path), scan.shape, str(scan.dtype), stat.st_mtime_ns, stat.st_size)
 
 
 def energy_loss_axis_mev(chunk, timestep_fs=2.5, stride=3):
@@ -143,45 +132,58 @@ def gaussian_broaden_spectrum(energy_mev, intensity, sigma_mev=0.0):
     return gaussian_filter1d(values, sigma=sigma_mev / steps[0], mode="reflect", truncate=4.0)
 
 
-def _open_probe(info, sample, probe_x, probe_y):
+def _open_scan(info):
     stat = Path(info.path).stat()
     if (stat.st_mtime_ns, stat.st_size) != (info.mtime_ns, info.size):
         raise ValueError("File changed on disk; refresh the file list")
-    scan = np.load(info.path, mmap_mode="r", allow_pickle=False)
+    return ScanReader(info.path)
+
+
+def _validate_index(name, value, length):
+    if not isinstance(value, (int, np.integer)) or not 0 <= value < length:
+        raise ValueError(f"{name} index {value} is outside [0, {length})")
+
+
+def _probe_key(info, sample, probe_x, probe_y):
     if len(info.shape) == 3:
         if (sample, probe_x, probe_y) != (0, 0, 0):
             raise ValueError("3D arrays contain only sample 0 and probe (0, 0)")
-        return scan
+        return [slice(None)] * 3
     for name, value, length in zip(
         ("sample", "probe x", "probe y"), (sample, probe_x, probe_y),
         (info.shape[0], info.shape[2], info.shape[3]),
     ):
-        if not isinstance(value, (int, np.integer)) or not 0 <= value < length:
-            raise ValueError(f"{name} index {value} is outside [0, {length})")
-    return scan[sample, :, probe_x, probe_y, :, :]
+        _validate_index(name, value, length)
+    return [sample, slice(None), probe_x, probe_y, slice(None), slice(None)]
 
 
 def extract_spectrum(info, *, sample=0, probe_x=0, probe_y=0, radius=20,
                      offset_px=0, offset_py=0, normalize_3d=True):
-    """Integrate with bounded working memory and float64 accumulation.
+    """Integrate bounded direct reads with float64 accumulation.
 
     Normalization divides by the sum of the entire selected (energy, px, py)
     block, exactly the normalization defined in STEM-EELS.ipynb.
     """
     mask = circular_detector_mask(info.shape[-2:], detector_center(info, offset_px, offset_py), radius)
-    block = _open_probe(info, sample, probe_x, probe_y)
-    spectrum = np.empty(block.shape[0], dtype=np.float64)
+    key = _probe_key(info, sample, probe_x, probe_y)
+    energy_axis = 0 if len(info.shape) == 3 else 1
+    n_energy = info.canonical_shape[1]
+    spectrum = np.empty(n_energy, dtype=np.float64)
     total = 0.0
-    for start in range(0, block.shape[0], 32):
-        part = block[start:start + 32]
-        selected = part[:, mask]
-        if not np.isfinite(selected).all():
-            raise ValueError("Selected detector data contains NaN or infinite intensities")
-        spectrum[start:start + len(part)] = selected.sum(axis=1, dtype=np.float64)
-        if normalize_3d:
-            if not np.isfinite(part).all():
-                raise ValueError("Cannot normalize: probe data contains NaN or infinite intensities")
-            total += part.sum(dtype=np.float64)
+    plane_bytes = int(np.prod(info.shape[-2:])) * np.dtype(info.dtype).itemsize
+    block_size = max(1, min(32, 16 * 2**20 // plane_bytes))
+    with _open_scan(info) as reader:
+        for start in range(0, n_energy, block_size):
+            key[energy_axis] = slice(start, min(start + block_size, n_energy))
+            part = reader.read(key)
+            selected = part[:, mask]
+            if not np.isfinite(selected).all():
+                raise ValueError("Selected detector data contains NaN or infinite intensities")
+            spectrum[start:start + len(part)] = selected.sum(axis=1, dtype=np.float64)
+            if normalize_3d:
+                if not np.isfinite(part).all():
+                    raise ValueError("Cannot normalize: probe data contains NaN or infinite intensities")
+                total += part.sum(dtype=np.float64)
     if normalize_3d:
         if not np.isfinite(total) or total == 0:
             raise ValueError(f"Cannot normalize probe data with total intensity {total}")
@@ -192,9 +194,40 @@ def extract_spectrum(info, *, sample=0, probe_x=0, probe_y=0, radius=20,
 
 
 def diffraction_pattern(info, energy_index, *, sample=0, probe_x=0, probe_y=0):
-    if not 0 <= energy_index < info.canonical_shape[1]:
-        raise ValueError("Energy index is outside this scan")
-    return np.array(_open_probe(info, sample, probe_x, probe_y)[energy_index], dtype=float)
+    _validate_index("Energy", energy_index, info.canonical_shape[1])
+    key = _probe_key(info, sample, probe_x, probe_y)
+    key[0 if len(info.shape) == 3 else 1] = energy_index
+    with _open_scan(info) as reader:
+        return reader.read(key).astype(float)
+
+
+def detector_scan_map(info, energy_index, *, sample=0, radius=21,
+                      offset_px=0, offset_py=0):
+    """Return raw detector sums indexed by (probe_x, probe_y) at one energy.
+
+    Read at most one probe-x row at a time, splitting larger rows into blocks
+    of at most 16 MiB (or one detector plane if a plane exceeds that size).
+    No spectrum normalization, detailed balance, or broadening is applied.
+    """
+    if len(info.shape) != 6:
+        raise ValueError("A 2D scan map requires a 6D scan")
+    _validate_index("Sample", sample, info.shape[0])
+    _validate_index("Energy", energy_index, info.shape[1])
+    mask = circular_detector_mask(info.shape[-2:], detector_center(info, offset_px, offset_py), radius)
+    n_x, n_y = info.shape[2:4]
+    scan_map = np.empty((n_x, n_y), dtype=np.float64)
+    plane_bytes = int(np.prod(info.shape[-2:])) * np.dtype(info.dtype).itemsize
+    row_step = max(1, 16 * 2**20 // plane_bytes)
+    with _open_scan(info) as reader:
+        for x in range(n_x):
+            for y in range(0, n_y, row_step):
+                stop = min(y + row_step, n_y)
+                row = reader.read((sample, energy_index, x, slice(y, stop), slice(None), slice(None)))
+                values = np.sum(row, axis=(-2, -1), where=mask, dtype=np.float64)
+                if not np.isfinite(values).all():
+                    raise ValueError("Selected detector data contains NaN, infinite, or overflowed intensities")
+                scan_map[x, y:stop] = values
+    return scan_map
 
 
 def rectangle_from_plot(shape, x0, x1, y0, y1):
@@ -232,20 +265,26 @@ def extract_angle_resolved(info, bounds, *, retain_axis="py", sample=0,
         raise ValueError("Rectangle bounds must be ordered and inside the diffraction plane")
     retained = np.arange(c0, c1 + 1) if retain_axis == "py" else np.arange(r0, r1 + 1)
     pixels = retained - info.shape[-1 if retain_axis == "py" else -2] // 2
-    block = _open_probe(info, sample, probe_x, probe_y)
-    result = np.empty((block.shape[0], len(pixels)), dtype=np.float64)
+    key = _probe_key(info, sample, probe_x, probe_y)
+    energy_axis = 0 if len(info.shape) == 3 else 1
+    n_energy = info.canonical_shape[1]
+    result = np.empty((n_energy, len(pixels)), dtype=np.float64)
     total = 0.0
-    for start in range(0, block.shape[0], 32):
-        part = block[start:start + 32]
-        crop = part[:, r0:r1 + 1, c0:c1 + 1]
-        if not np.isfinite(crop).all():
-            raise ValueError("Selected rectangle contains NaN or infinite intensities")
-        result[start:start + len(part)] = crop.sum(axis=1 if retain_axis == "py" else 2,
-                                                  dtype=np.float64)
-        if normalize_3d:
-            if not np.isfinite(part).all():
-                raise ValueError("Cannot normalize: probe data contains NaN or infinite intensities")
-            total += part.sum(dtype=np.float64)
+    plane_bytes = int(np.prod(info.shape[-2:])) * np.dtype(info.dtype).itemsize
+    block_size = max(1, min(32, 16 * 2**20 // plane_bytes))
+    with _open_scan(info) as reader:
+        for start in range(0, n_energy, block_size):
+            key[energy_axis] = slice(start, min(start + block_size, n_energy))
+            part = reader.read(key)
+            crop = part[:, r0:r1 + 1, c0:c1 + 1]
+            if not np.isfinite(crop).all():
+                raise ValueError("Selected rectangle contains NaN or infinite intensities")
+            result[start:start + len(part)] = crop.sum(axis=1 if retain_axis == "py" else 2,
+                                                      dtype=np.float64)
+            if normalize_3d:
+                if not np.isfinite(part).all():
+                    raise ValueError("Cannot normalize: probe data contains NaN or infinite intensities")
+                total += part.sum(dtype=np.float64)
     if normalize_3d:
         if not np.isfinite(total) or total == 0:
             raise ValueError(f"Cannot normalize probe data with total intensity {total}")
