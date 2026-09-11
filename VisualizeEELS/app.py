@@ -18,6 +18,7 @@ from eels_core import (
     KB_MEV_PER_K,
 )
 from detector_click import register_detector_click_bridge
+from angle_resolved import render_angle_resolved
 
 ROOT = Path(__file__).resolve().parent
 detector_click_bridge = register_detector_click_bridge()
@@ -279,7 +280,8 @@ metrics[2].metric("Energy bins", " / ".join(map(str, bins)))
 resolutions = sorted({round(float(c["energy"][1] - c["energy"][0]), 6) for c in curves if len(c["energy"]) > 1})
 metrics[3].metric("Resolution (meV)", " / ".join(f"{v:.3f}" for v in resolutions) or "—")
 
-spectrum_tab, detector_tab, details_tab = st.tabs(["Spectra", "Detector preview", "Files & method"])
+spectrum_tab, detector_tab, angle_tab, details_tab = st.tabs(
+    ["Spectra", "Detector preview", "Angle-resolved EELS", "Files & method"])
 with spectrum_tab:
     controls = st.columns([1.3, 1, 1])
     mode_label = controls[0].selectbox("Intensity display", ["log10", "Linear"])
@@ -427,6 +429,9 @@ with detector_tab:
             st.warning("The detector extends beyond this array. Only pixels inside the recorded plane are integrated.")
     except (OSError, ValueError, IndexError) as exc:
         st.warning(f"Preview unavailable: {exc}")
+
+with angle_tab:
+    render_angle_resolved(curves, scans, settings)
 
 with details_tab:
     st.dataframe([{"Label": label, "File": Path(info.path).name, "Shape": str(info.shape),

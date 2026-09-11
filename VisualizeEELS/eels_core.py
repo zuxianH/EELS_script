@@ -197,6 +197,89 @@ def diffraction_pattern(info, energy_index, *, sample=0, probe_x=0, probe_y=0):
     return np.array(_open_probe(info, sample, probe_x, probe_y)[energy_index], dtype=float)
 
 
+def rectangle_from_plot(shape, x0, x1, y0, y1):
+    """Convert Plotly coordinates to inclusive (px_min, px_max, py_min, py_max).
+
+    Select pixel centers inside the drawn rectangle, clipped to the image.
+    Plotly x is the array's py (column); Plotly y is px (row).
+    """
+    if not np.isfinite([x0, x1, y0, y1]).all():
+        raise ValueError("Rectangle coordinates must be finite")
+    bounds = []
+    for a, b, count in ((y0, y1, shape[0]), (x0, x1, shape[1])):
+        low = max(0, int(np.ceil(min(a, b))))
+        high = min(count - 1, int(np.floor(max(a, b))))
+        if low > high:
+            raise ValueError("Draw a box containing at least one pixel center in each direction")
+        bounds.extend((low, high))
+    return tuple(bounds)
+
+
+def extract_angle_resolved(info, bounds, *, retain_axis="py", sample=0,
+                           probe_x=0, probe_y=0, normalize_3d=True):
+    """Sum a rectangular strip, returning (pixel offsets, energy-by-pixel map).
+
+    Bounds are inclusive (px_min, px_max, py_min, py_max). Retaining py sums
+    rows (px), matching cropped.sum(axis=1) for an (energy, row, column) cube.
+    Full-probe normalization uses the same denominator as extract_spectrum.
+    """
+    if retain_axis not in ("px", "py"):
+        raise ValueError("Retained detector axis must be px or py")
+    if len(bounds) != 4 or any(not isinstance(v, (int, np.integer)) for v in bounds):
+        raise ValueError("Rectangle bounds must be four integer pixel indices")
+    r0, r1, c0, c1 = bounds
+    if not (0 <= r0 <= r1 < info.shape[-2] and 0 <= c0 <= c1 < info.shape[-1]):
+        raise ValueError("Rectangle bounds must be ordered and inside the diffraction plane")
+    retained = np.arange(c0, c1 + 1) if retain_axis == "py" else np.arange(r0, r1 + 1)
+    pixels = retained - info.shape[-1 if retain_axis == "py" else -2] // 2
+    block = _open_probe(info, sample, probe_x, probe_y)
+    result = np.empty((block.shape[0], len(pixels)), dtype=np.float64)
+    total = 0.0
+    for start in range(0, block.shape[0], 32):
+        part = block[start:start + 32]
+        crop = part[:, r0:r1 + 1, c0:c1 + 1]
+        if not np.isfinite(crop).all():
+            raise ValueError("Selected rectangle contains NaN or infinite intensities")
+        result[start:start + len(part)] = crop.sum(axis=1 if retain_axis == "py" else 2,
+                                                  dtype=np.float64)
+        if normalize_3d:
+            if not np.isfinite(part).all():
+                raise ValueError("Cannot normalize: probe data contains NaN or infinite intensities")
+            total += part.sum(dtype=np.float64)
+    if normalize_3d:
+        if not np.isfinite(total) or total == 0:
+            raise ValueError(f"Cannot normalize probe data with total intensity {total}")
+        result /= total
+    if not np.isfinite(result).all():
+        raise ValueError("Integrated map overflowed; check the input data")
+    return pixels, result
+
+
+def process_angle_resolved(energy, intensity, *, unshifted=False, temperature_k=None,
+                           sigma_mev=0.0):
+    """Order and correct a map, broadening only along energy, never along pixels."""
+    energy = np.asarray(energy, dtype=float)
+    values = np.array(intensity, dtype=float, copy=True)
+    if energy.ndim != 1 or values.ndim != 2 or values.shape[0] != energy.size or not values.size:
+        raise ValueError("Expected a nonempty (energy, pixel) map matching the energy axis")
+    if not np.isfinite(values).all() or not np.isfinite(energy).all():
+        raise ValueError("Map and energy values must be finite")
+    if not np.isfinite(sigma_mev) or sigma_mev < 0:
+        raise ValueError("Gaussian sigma must be finite and nonnegative")
+    if unshifted:
+        values = np.fft.fftshift(values, axes=0)
+    if temperature_k is not None:
+        values *= detailed_balance_factor(energy, temperature_k)[:, None]
+    if sigma_mev > 0:
+        values = np.column_stack([
+            gaussian_broaden_spectrum(energy, values[:, i], sigma_mev)
+            for i in range(values.shape[1])
+        ])
+    if not np.isfinite(values).all():
+        raise ValueError("Corrected map overflowed; check input intensity and temperature")
+    return values
+
+
 def display_intensity(values, mode):
     if mode == "log10":
         return np.log10(np.clip(values, np.finfo(float).tiny, None))

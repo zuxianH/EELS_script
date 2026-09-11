@@ -42,6 +42,16 @@ Supported arrays:
 
 When mixing formats, sample/probe controls affect 6D files; each 3D file still contributes one curve. With multiple 6D files, controls use indices valid in all selected files. Different energy lengths and detector-plane shapes are supported; center offsets are relative to each array's integer center. Shared time calibration must apply to all selected files. The app lists `.npy` files directly inside the chosen folder, not subfolders.
 
+## Angle-resolved phonon EELS
+
+Open **Angle-resolved EELS** and enable the map, then choose a file/probe under **Map spectrum**. Drag a rectangle on the diffraction image; drawing a new box replaces the previous selection. You can also move/resize the outline or enter the inclusive row/column bounds numerically. Choose the preview energy to find a useful diffraction pattern. The rectangular selection is independent of the circular detector used for 1D spectra.
+
+**Horizontal (py)** retains detector columns and sums rows, matching `data[:, row_min:row_max+1, col_min:col_max+1].sum(axis=1)` in the supplied calculation. **Vertical (px)** retains rows and sums columns instead. The map has energy loss on the vertical axis and detector pixel offset from the array's integer center on the horizontal axis. No mrad or momentum calibration is assumed. Bounds are remembered separately for each file/plane during the session; all selected 6D probe spectra are available in the source selector.
+
+The sidebar's energy calibration, FFT ordering, full-probe normalization, detailed balance at the selected file's temperature, and Gaussian broadening apply to the map. Broadening runs along energy only. Integration and corrections use linear intensities; log10 affects color display only and masks nonpositive bins. The colorbar represents strip-summed intensity, not an intensity density per mrad. The diffraction image shows raw data.
+
+Set the map energy limits and optionally its color limits (in log10 or linear display units). **Map NumPy + settings** saves `energy_mev`, `pixel_offset`, the full-range linear `intensity` array of shape `(energy, pixel)`, and `metadata_json` with the source/probe, inclusive box bounds, retained axis, and processing settings. **Map PNG/SVG** exports the displayed map at the chosen limits; PNG uses 300 dpi. Ratios are not computed.
+
 ## Calculation and exports
 
 The detector sums pixels inside a circle, including its boundary. Optional normalization divides by the sum of the entire `(energy, px, py)` probe block. This is **not** unit-area normalization of the extracted spectrum. Array intensities are assumed already FFT-shifted, matching the notebook; the ordering control also supports raw unshifted FFT output. Float64 accumulation and bounded blocks avoid copying an entire scan; floating-point results may differ from notebook reductions at rounding precision.
