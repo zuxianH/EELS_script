@@ -17,6 +17,7 @@ from eels_core import (
     extract_spectrum, gaussian_broaden_spectrum, inspect_scan, detailed_balance_factor,
     KB_MEV_PER_K,
 )
+from scan_map_view import render_scan_map
 from detector_click import register_detector_click_bridge
 
 ROOT = Path(__file__).resolve().parent
@@ -89,14 +90,6 @@ def suggested_temperature(path):
     return float(match[1]) if match and float(match[1]) > 0 else None
 
 
-def index_control(label, count, key):
-    # Keep widget state valid when the user switches to a smaller scan.
-    if key in st.session_state and st.session_state[key] >= count:
-        st.session_state[key] = 0
-    return int(st.number_input(label, min_value=0, max_value=count - 1, value=0,
-                               step=1, key=key, disabled=count == 1))
-
-
 def move_detector_from_click():
     # Component callbacks run before widgets, so updating the sidebar is safe.
     clicked = st.session_state.get("detector_click", {}).get("clicked")
@@ -119,7 +112,8 @@ def reset_detector_center():
 
 st.caption("STEM · SPECTROSCOPY WORKSPACE")
 st.title("EELS Studio")
-st.write("From diffraction data to a spectrum. Choose your scans, position the detector, and compare.")
+st.write("Choose your scans, position the detector, and explore spectra or a 2D probe map.")
+view = st.radio("Visualization", ["Spectra & detector", "2D scan map"], horizontal=True, key="visualization")
 
 with st.sidebar:
     st.header("Your scans")
@@ -164,6 +158,11 @@ with st.sidebar:
         st.warning("Give each selected file a nonempty, unique curve label.")
         st.stop()
 
+if view == "2D scan map":
+    render_scan_map(infos, labels)
+    st.stop()
+
+with st.sidebar:
     st.divider()
     st.header("Extraction")
     radius = st.number_input("Detector radius (pixels)", min_value=0.1, value=20.0, step=1.0)
@@ -186,20 +185,29 @@ with st.sidebar:
     normalize = st.checkbox("Normalize full probe block", value=True,
                             help="Divide by the sum over all energy bins and all detector-plane pixels at this probe, before detector integration. Matches normalize_3d in the notebook.")
     six_d = [i for i in infos if len(i.shape) == 6]
+    sample = 0
     if six_d:
-        sample = index_control("Sample index", min(i.shape[0] for i in six_d), "sample")
-        probe_y = index_control("Probe y index", min(i.shape[3] for i in six_d), "probe_y")
-        x_options = list(range(min(i.shape[2] for i in six_d)))
-        if "probe_x" in st.session_state:
-            st.session_state["probe_x"] = [x for x in st.session_state["probe_x"] if x in x_options]
-        probe_xs = st.multiselect("Probe x indices", x_options, default=[0], key="probe_x")
-        if not probe_xs:
-            st.info("Select at least one probe x index.")
+        n_x = min(i.shape[2] for i in six_d)
+        n_y = min(i.shape[3] for i in six_d)
+        position_options = [(x, y) for x in range(n_x) for y in range(n_y)]
+        if "probe_positions" in st.session_state:
+            st.session_state["probe_positions"] = [
+                tuple(position) for position in st.session_state["probe_positions"]
+                if tuple(position) in position_options
+            ]
+        probe_positions = st.multiselect(
+            "Probe positions (x, y)", position_options, default=[(0, 0)],
+            format_func=lambda position: f"({position[0]}, {position[1]})",
+            key="probe_positions",
+            help="Choose individual probe positions. Each selected pair produces one spectrum per 6D file.")
+        st.caption(f"Probe x: 0–{n_x - 1} · probe y: 0–{n_y - 1}. Each entry is one (x, y) pair.")
+        if not probe_positions:
+            st.info("Select at least one probe position (x, y).")
             st.stop()
         if len(six_d) != len(infos):
-            st.caption("3D files contribute one curve at sample 0, probe (0, 0). Index controls apply to 6D scans.")
+            st.caption("3D files contribute one curve at probe (0, 0). Selected pairs apply to 6D scans.")
     else:
-        sample, probe_y, probe_xs = 0, 0, [0]
+        probe_positions = [(0, 0)]
         st.caption("3D diffraction data · one spectrum per file.")
 
     with st.expander("Energy calibration", expanded=True):
@@ -236,8 +244,8 @@ with st.sidebar:
             st.caption(f"FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV. Applies to spectra and downloads; the diffraction image stays unchanged.")
 
 settings = dict(detector_radius_px=radius, center_offset_px=offset_px, center_offset_py=offset_py,
-                normalize_3d=normalize, sample=sample, probe_x_indices=probe_xs,
-                probe_y=probe_y, timestep_fs=timestep, stride=stride, input_energy_ordering=ordering,
+                normalize_3d=normalize, sample=sample, probe_positions_xy=probe_positions,
+                timestep_fs=timestep, stride=stride, input_energy_ordering=ordering,
                 gaussian_sigma_mev=sigma_mev, gaussian_boundary="reflect", gaussian_truncate=4.0,
                 detailed_balance_enabled=apply_detailed_balance,
                 detailed_balance_temperatures_k=temperatures,
@@ -250,11 +258,11 @@ curves = []
 try:
     with st.spinner("Integrating detector intensities…"):
         for info, label in zip(infos, labels):
-            xs = probe_xs if len(info.shape) == 6 else [0]
-            s, y = (sample, probe_y) if len(info.shape) == 6 else (0, 0)
+            positions = probe_positions if len(info.shape) == 6 else [(0, 0)]
+            s = sample
             energy = energy_loss_axis_mev(info.canonical_shape[1], timestep, stride)
             factor = detailed_balance_factor(energy, temperatures[info.path]) if apply_detailed_balance else None
-            for x in xs:
+            for x, y in positions:
                 intensity = cached_spectrum(info, s, x, y, radius, offset_px, offset_py, normalize)
                 if ordering == "Unshifted FFT":
                     intensity = np.fft.fftshift(intensity)
@@ -267,7 +275,7 @@ try:
                                    energy=energy, intensity=intensity,
                                    detailed_balance_enabled=apply_detailed_balance,
                                    temperature_k=temperatures.get(info.path)))
-except (OSError, ValueError, IndexError) as exc:
+except (OSError, ValueError, IndexError, EOFError) as exc:
     st.error(f"Could not extract spectra: {exc}")
     st.stop()
 
@@ -425,7 +433,7 @@ with detector_tab:
                    f"center (px, py) = {center} · {int(mask.sum()):,} detector pixels. Image shows raw plane intensities.")
         if any(c - radius < 0 or c + radius > n - 1 for c, n in zip(center, pattern.shape)):
             st.warning("The detector extends beyond this array. Only pixels inside the recorded plane are integrated.")
-    except (OSError, ValueError, IndexError) as exc:
+    except (OSError, ValueError, IndexError, EOFError) as exc:
         st.warning(f"Preview unavailable: {exc}")
 
 with details_tab:
@@ -436,7 +444,7 @@ with details_tab:
 **Array conventions**
 
 - 3D: `(energy, px, py)`, one probe block per file.
-- 6D: `(sample, energy, probe_x, probe_y, px, py)`, selected sample and probe positions.
+- 6D: `(sample, energy, probe_x, probe_y, px, py)`, first sample and selected probe positions.
 - The circular detector uses `(px − center_px)² + (py − center_py)² ≤ radius²`.
 - Full-probe normalization divides by the sum over **all energy bins and all pixels** at that probe.
 - Energy is `fftshift(fftfreq(n_energy, timestep_fs × stride / 1000)) × 4.13566769692386` in meV.
@@ -444,7 +452,7 @@ with details_tab:
 - Optional detailed balance multiplies linear intensity by `βE / (1 − exp(−βE))`, with `β = 1/(k_B T)`, energy in meV, and a separate temperature in kelvin for each file. Positive energy means loss; the zero-energy factor is 1. It is applied after energy ordering and before Gaussian broadening, without renormalizing the corrected spectrum. Enable this only for spectra that still need this correction.
 - Optional Gaussian broadening operates on linear EELS intensity after detector integration and before log display. σ is entered in meV and converted to bins using each file's energy spacing. The kernel extends to 4σ; reflecting boundaries preserve the recorded sum without wrapping between energy endpoints. Edge features can be affected by this boundary assumption.
 
-Files are memory-mapped and integrated in small energy blocks. Changing the plot or preview reuses cached spectra.
+File headers are inspected without memory mapping. Selected data is read directly in small blocks, avoiding a full-file virtual-memory reservation. Changing the plot or preview reuses cached spectra.
 Different energy lengths are supported; shared time step and stride must be appropriate for every selected scan.
 """)
     st.code(json.dumps(settings, indent=2), language="json")
