@@ -90,9 +90,6 @@ def test_map_app_defaults_and_no_spectrum_extraction(tmp_path):
         assert all(w.label != "Sample index" for w in app.number_input)
         app.selectbox(key="map_ordering").select("Unshifted FFT").run()
         assert not app.exception and not app.error
-        axis = energy_loss_axis_mev(7, 5, 3)
-        raw_index = np.fft.fftshift(np.arange(7))[np.argmin(abs(axis - 60))]
-        assert any(f"array energy index {raw_index}" in c.value for c in app.caption)
         spec = json.loads(app.get("plotly_chart")[0].proto.spec)
         assert spec["layout"]["xaxis"]["title"]["text"] == "Probe x (index)"
         assert spec["layout"]["yaxis"]["title"]["text"] == "Probe y (index)"

@@ -22,26 +22,19 @@ Open http://localhost:8501. Stop the server with Ctrl+C. The server binds to you
 4. Switch between linear intensity and log10, set plot limits, and inspect the detector overlay at any energy. Turn off **Show hover details** above the spectrum plot to hide the popup when comparing many curves. Under **Line appearance**, select a spectrum and customize its color, line style (solid, dashed, dotted, or dash-dot), and width. Styles are retained during the session when you switch files or rename labels, apply to SVG/PNG downloads, and are included in NPZ curve metadata. Changes update automatically; extracted spectra are cached.
 5. Download CSV, NumPy data, or SVG/PNG figures from **Export spectra & figures**.
 
+On the spectrum chart, drag an axis to move its range. Hold **Shift** and drag on either axis to scale about its current midpoint: **up/right zooms in**, **down/left zooms out**. The other axis stays unchanged. Zoom and axis positions stay in place when you change detector radius or other processing/display parameters. Editing the numeric energy or intensity limits replaces the view of that axis; the plot toolbar's **Reset axes** control restores the default view. Drag inside the plot for box zoom, or double-click to reset. These interactions only change the browser view; exported figures use the numeric display controls.
+
 ### 2D scan maps
 
 Select **Visualization → 2D scan map**, choose a selected 6D file under **Map scan**, and set the energies and circular detector. The first sample (index 0) is used automatically. Defaults match the BTO notebook: requested energy **60 meV**, radius **21 pixels**, centered detector, time step **5 fs**, stride **3**, and FFT-shifted energy ordering. Enter one or more values under **Map energies (meV)**, for example `20, 40, 60, 80`. Maps appear in a grid with up to three columns, using the nearest recorded bins. Each panel shows its actual energy and array index; requests that select the same bin share one panel.
 
 Each map sums detector pixels at every probe position and uses raw intensities with a linear color scale. **Shared color scale** starts enabled so colors represent the same intensity across energies. Turn it off to inspect each map on its own intensity scale. Horizontal is probe x and vertical is probe y. Hover to inspect an intensity; download the figure as PNG, the `(probe_x, probe_y)` array as `.npy`, or the array plus calibration and detector metadata as `.npz`. For multiple energies, **Download all maps** exports a combined PNG or an NPZ containing `scan_maps` with shape `(energy_map, probe_x, probe_y)`, `selected_energies_mev`, `energy_indices`, and JSON settings. Maps follow the requested energy order after merging duplicate bins. All-zero slices are displayed with an explanation.
 
-Map controls are independent of spectrum controls. Spectrum normalization, detailed balance, and broadening do not apply. The map view does not extract spectra first, so a zero-sum spectrum cannot block map visualization. Switch back to **Spectra & detector** for those operations.
+Map controls are independent of spectrum controls. Spectrum normalization and broadening do not apply. The map view does not extract spectra first, so a zero-sum spectrum cannot block map visualization. Switch back to **Spectra & detector** for those operations.
 
 File inspection reads only the header. Maps, spectra, and diffraction previews use direct block reads without mapping the full file. For the 159 GiB BTO scan, a map reads one selected energy slice (about 272 MiB total) in roughly 9 MiB probe rows. Larger rows are split into blocks targeting 16 MiB; a single detector plane is the minimum block. Temporary reduction arrays add some RAM overhead. Energies are processed sequentially; only the resulting small maps/spectra/previews are cached. Reading additional energies increases disk I/O without loading the full scan into RAM. C-order and Fortran-order numeric arrays are supported; C-order scans provide the most efficient detector-row reads.
 
 To smooth/broaden spectra, enable **Gaussian broadening → Broaden EELS spectrum** in the sidebar and enter **Gaussian σ (meV)**. This is the Gaussian standard deviation; the equivalent FWHM is displayed below it. Broadening starts disabled. It applies to linear EELS intensity after detector integration and before log display, and uses each file's energy spacing. The diffraction preview stays unchanged. All plots and downloads include broadening when enabled; turn it off to recover unbroadened spectra. NPZ metadata records sigma and the boundary settings.
-
-To apply the temperature-dependent correction, enable **Detailed balance → Apply detailed-balance factor** in the sidebar. Set **Temperature (K)** separately for every file; names containing `_T300K_`, for example, prefill 300 K. Unrecognized temperatures must be entered manually. All probes from a file use that file's temperature. The option starts disabled and multiplies the linear spectrum by
-
-```text
-f(E,T) = βE / (1 − exp(−βE)),  β = 1/(k_B T)
-k_B ≈ 0.08617333262 meV/K
-```
-
-Energy is in meV, positive energy denotes loss, and temperature must be positive. The factor at zero energy is exactly 1; evaluation is stable near zero and for large negative βE. Correction follows detector integration, optional full-probe normalization, and FFT ordering, and precedes Gaussian broadening and log display. The corrected spectrum is not renormalized. Use this option for input spectra that still require this factor. It affects every spectrum plot and download; the diffraction preview continues to show raw planes. NPZ metadata records whether correction was enabled, the formula, and each file/curve's temperature. Disable it to recover the original processing.
 
 The Gaussian kernel extends to four standard deviations and uses reflecting boundaries. This preserves the sum of the recorded intensities without wrapping the high-energy endpoint to the low-energy endpoint. Features close to either endpoint depend on this boundary assumption. Sigma must not exceed the recorded energy span, and broadening requires at least two bins.
 
@@ -58,9 +51,9 @@ Open **Angle-resolved EELS** and enable the map, then choose a file/probe under 
 
 **Horizontal (py)** retains detector columns and sums rows, matching `data[:, row_min:row_max+1, col_min:col_max+1].sum(axis=1)` in the supplied calculation. **Vertical (px)** retains rows and sums columns instead. The map has energy loss on the vertical axis and detector pixel offset from the array's integer center on the horizontal axis. No mrad or momentum calibration is assumed. Bounds are remembered separately for each file/plane during the session; all selected 6D probe spectra are available in the source selector.
 
-The sidebar's energy calibration, FFT ordering, full-probe normalization, detailed balance at the selected file's temperature, and Gaussian broadening apply to the map. Broadening runs along energy only. Integration and corrections use linear intensities; log10 affects color display only and masks nonpositive bins. The colorbar represents strip-summed intensity, not an intensity density per mrad. The diffraction image shows raw data.
+The sidebar's energy calibration, FFT ordering, full-probe normalization, and Gaussian broadening apply to the map. Broadening runs along energy only. Integration and corrections use linear intensities; log10 affects color display only and masks nonpositive bins. The colorbar represents strip-summed intensity, not an intensity density per mrad. The diffraction image shows raw data.
 
-Set the map energy limits and optionally its color limits (in log10 or linear display units). **Map NumPy + settings** saves `energy_mev`, `pixel_offset`, the full-range linear `intensity` array of shape `(energy, pixel)`, and `metadata_json` with the source/probe, inclusive box bounds, retained axis, and processing settings. **Map PNG/SVG** exports the displayed map at the chosen limits; PNG uses 300 dpi. Ratios are not computed.
+Set the map energy limits and optionally its color limits (in log10 or linear display units). **Map NumPy + settings** saves `energy_mev`, `pixel_offset`, the full-range linear `intensity` array of shape `(energy, pixel)`, and `metadata_json` with the source/probe, inclusive box bounds, retained axis, and processing settings. **Map PNG/SVG** exports the displayed map at the chosen limits; PNG resolution follows the **PNG export resolution** setting at the top of the page (default 300 DPI). Ratios are not computed.
 
 ## Calculation and exports
 
@@ -95,3 +88,5 @@ Files with unsupported shapes/dtypes appear under **unsupported files**. Object 
 ```
 
 Tests check direct reads, 2D maps, and extraction against the actual notebook functions, check 3D and 6D inputs, shifted detectors, click-coordinate conversion, Gaussian width and boundary behavior, normalization, invalid inputs, exports, and application interactions.
+
+The optional axis-gesture browser test needs Playwright and a browser. Install with `.venv/bin/python -m pip install playwright` and `.venv/bin/python -m playwright install firefox`, then run `EELS_BROWSER=firefox .venv/bin/python -m pytest -q tests/test_axis_browser.py`. Alternatively, set `EELS_CHROME_PATH` to an installed Chrome/Chromium executable.

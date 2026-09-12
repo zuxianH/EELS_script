@@ -10,19 +10,19 @@ import streamlit as st
 import streamlit.components.v2 as components
 
 from eels_core import (
-    diffraction_pattern, extract_angle_resolved, process_angle_resolved, rectangle_from_plot,
+    curve_identity_key, extract_angle_resolved, nearest_energy_index, process_angle_resolved,
+    rectangle_from_plot,
 )
+from cache_layer import cached_diffraction_pattern, PNG_DPI_OPTIONS
+
+# Read once at import time rather than on every Streamlit rerun.
+_RECTANGLE_SELECT_JS = Path(__file__).with_name("rectangle_select.js").read_text()
 
 
 @st.cache_data(show_spinner=False, max_entries=16)
 def cached_map(info, bounds, retain_axis, sample, probe_x, probe_y, normalize):
     return extract_angle_resolved(info, bounds, retain_axis=retain_axis, sample=sample,
                                   probe_x=probe_x, probe_y=probe_y, normalize_3d=normalize)
-
-
-@st.cache_data(show_spinner=False, max_entries=16)
-def cached_plane(info, index, sample, probe_x, probe_y):
-    return diffraction_pattern(info, index, sample=sample, probe_x=probe_x, probe_y=probe_y)
 
 
 def receive_rectangle():
@@ -39,6 +39,7 @@ def receive_rectangle():
         st.session_state["angle_rectangle_error"] = str(exc)
 
 
+@st.cache_data(show_spinner=False, max_entries=16)
 def export_map(energy, pixels, intensity, metadata):
     output = io.BytesIO()
     np.savez_compressed(output, energy_mev=energy, pixel_offset=pixels, intensity=intensity,
@@ -57,7 +58,7 @@ def map_display(intensity, logarithmic):
 
 
 @st.cache_data(show_spinner=False, max_entries=4)
-def map_figures(energy, pixels, shown, title, xlabel, color_label, energy_limits, color_limits):
+def map_figures(energy, pixels, shown, title, xlabel, color_label, energy_limits, color_limits, dpi=300):
     figure, axes = plt.subplots(figsize=(8, 6), layout="constrained")
     # Explicit pixel edges also render a strip only one pixel wide correctly.
     pixel_edges = np.r_[pixels - 0.5, pixels[-1] + 0.5]
@@ -72,7 +73,7 @@ def map_figures(energy, pixels, shown, title, xlabel, color_label, energy_limits
     result = {}
     for extension in ("png", "svg"):
         output = io.BytesIO()
-        figure.savefig(output, format=extension, dpi=300)
+        figure.savefig(output, format=extension, dpi=dpi)
         result[extension] = output.getvalue()
     plt.close(figure)
     return result
@@ -83,7 +84,7 @@ def render_angle_resolved(curves, scans, settings):
     if not st.checkbox("Enable angle-resolved map", key="angle_enabled"):
         return
     # Stable identifiers prevent a scan reorder from silently selecting another probe.
-    choices = {json.dumps([c["path"], c["sample"], c["probe_x"], c["probe_y"]]): c for c in curves}
+    choices = {curve_identity_key(c): c for c in curves}
     if st.session_state.get("angle_source") not in choices:
         st.session_state["angle_source"] = next(iter(choices))
     selected = st.selectbox("Map spectrum", list(choices), key="angle_source",
@@ -141,17 +142,15 @@ def render_angle_resolved(curves, scans, settings):
             return
 
     unshifted = settings["input_energy_ordering"] == "Unshifted FFT"
-    index = int(np.argmin(np.abs(energy - requested_energy)))
-    raw_index = int(np.fft.fftshift(np.arange(len(energy)))[index]) if unshifted else index
+    index, raw_index = nearest_energy_index(energy, requested_energy, unshifted=unshifted)
     try:
-        plane = cached_plane(info, raw_index, curve["sample"], curve["probe_x"], curve["probe_y"])
+        plane = cached_diffraction_pattern(info, raw_index, curve["sample"], curve["probe_x"], curve["probe_y"])
         if not np.isfinite(plane).all():
             raise ValueError("Diffraction preview contains nonfinite values")
         pixels, raw_map = cached_map(info, tuple(bounds), retain_axis, curve["sample"],
                                      curve["probe_x"], curve["probe_y"], settings["normalize_3d"])
-        temperature = curve["temperature_k"] if settings["detailed_balance_enabled"] else None
         intensity = process_angle_resolved(energy, raw_map, unshifted=unshifted,
-                                           temperature_k=temperature, sigma_mev=settings["gaussian_sigma_mev"])
+                                           sigma_mev=settings["gaussian_sigma_mev"])
     except (OSError, ValueError, IndexError) as exc:
         st.error(f"Could not create angle-resolved map: {exc}")
         return
@@ -179,8 +178,7 @@ def render_angle_resolved(curves, scans, settings):
         preview_id = json.dumps([selected, info.mtime_ns, shape, raw_index])
         st.session_state["angle_rectangle_context"] = dict(preview_id=preview_id, shape=shape,
                                                            bound_keys=bound_keys)
-        bridge = components.component("eels_angle_rectangle",
-                                       js=Path(__file__).with_name("rectangle_select.js").read_text())
+        bridge = components.component("eels_angle_rectangle", js=_RECTANGLE_SELECT_JS)
         revision = st.session_state.get("angle_rectangle_revision", 0) + 1
         st.session_state["angle_rectangle_revision"] = revision
         bridge(key="angle_rectangle", data=dict(preview_id=preview_id, revision=revision),
@@ -205,21 +203,24 @@ def render_angle_resolved(curves, scans, settings):
                         config={"displaylogo": False, "toImageButtonOptions": {"format": "svg"}})
     st.caption(f"Map shape: {len(energy)} energy bins × {len(pixels)} pixels. "
                "Pixel zero is the array's integer center; no angular calibration is assumed. "
-               "Sidebar normalization, energy calibration, detailed balance and Gaussian broadening apply. Broadening acts only along energy.")
+               "Sidebar normalization, energy calibration, and Gaussian broadening apply. Broadening acts only along energy.")
     if logarithmic and np.any(intensity <= 0):
         st.caption("Nonpositive bins are blank on the log map; exported linear data retains them.")
     if not np.any((energy >= energy_min) & (energy <= energy_max)):
         st.warning("The selected map energy window contains no data bins.")
     metadata = dict(source={k: curve[k] for k in ("label", "path", "sample", "probe_x", "probe_y")},
-                     settings=settings, temperature_k=temperature, roi_bounds_inclusive=bounds,
+                     settings=settings, roi_bounds_inclusive=bounds,
                      retained_axis=retain_axis, pixel_origin="array integer center",
                      intensity_axes=["energy", "pixel"], color_scale="log10" if logarithmic else "linear",
                      energy_limits=[energy_min, energy_max], color_limits=color_limits)
+    png_dpi = st.selectbox("PNG export resolution", PNG_DPI_OPTIONS, index=PNG_DPI_OPTIONS.index(300),
+                           format_func=lambda d: f"{d} DPI", key="png_dpi_angle",
+                           help="Resolution used for the Map PNG download below.")
     downloads = st.columns(3)
     downloads[0].download_button("Map NumPy + settings", export_map(energy, pixels, intensity, metadata),
                                   "angle_resolved_eels.npz", "application/octet-stream")
     figures = map_figures(energy, pixels, shown, curve["label"], xlabel, color_label,
-                           (energy_min, energy_max), color_limits)
+                           (energy_min, energy_max), color_limits, png_dpi)
     for col, extension in zip(downloads[1:], ("png", "svg")):
         col.download_button(f"Map {extension.upper()}", figures[extension],
                               f"angle_resolved_eels.{extension}", f"image/{'svg+xml' if extension == 'svg' else 'png'}")

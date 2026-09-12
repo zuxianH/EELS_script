@@ -12,17 +12,19 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from eels_core import (
-    circular_detector_mask, detector_center, diffraction_pattern, display_intensity,
+    circular_detector_mask, curve_identity_key, detector_center, display_intensity,
     detector_offsets_from_click, energy_loss_axis_mev, export_csv, export_npz,
-    extract_spectrum, gaussian_broaden_spectrum, inspect_scan, detailed_balance_factor,
-    KB_MEV_PER_K,
+    extract_spectrum, gaussian_broaden_spectrum, inspect_scan, nearest_energy_index,
 )
+from cache_layer import cached_diffraction_pattern, PNG_DPI_OPTIONS
 from scan_map_view import render_scan_map
 from detector_click import register_detector_click_bridge
 from angle_resolved import render_angle_resolved
+from axis_scaling import register_axis_scaling
 
 ROOT = Path(__file__).resolve().parent
 detector_click_bridge = register_detector_click_bridge()
+axis_scaling = register_axis_scaling()
 COLORS = ["#137c78", "#dd7848", "#626cc6", "#c24c79", "#7a9845", "#428fbd"]
 LINE_STYLES = {
     "Solid": ("solid", "-"),
@@ -37,6 +39,10 @@ h1 {letter-spacing: -0.045em;}
 [data-testid="stMetric"] {background: white; border: 1px solid #dce5ec;
   border-radius: 12px; padding: 14px 18px;}
 [data-testid="stSidebar"] {border-right: 1px solid #dce5ec;}
+/* Keep the interface fully visible while an input change reruns the app. */
+[data-testid="stElementContainer"], [data-testid="stExpanderDetails"] {
+  opacity: 1 !important; transition: none !important;
+}
 </style>""", unsafe_allow_html=True)
 
 
@@ -47,13 +53,36 @@ def cached_spectrum(info, sample, probe_x, probe_y, radius, offset_px, offset_py
                             normalize_3d=normalize)
 
 
-@st.cache_data(show_spinner=False, max_entries=32)
-def cached_pattern(info, energy_index, sample, probe_x, probe_y):
-    return diffraction_pattern(info, energy_index, sample=sample, probe_x=probe_x, probe_y=probe_y)
+@st.cache_data(show_spinner=False, max_entries=256)
+def _cached_inspect(path_str, mtime_ns, size):
+    return inspect_scan(path_str)
+
+
+def inspect_scan_cached(path):
+    """Skip re-parsing a scan's header when its mtime/size haven't changed."""
+    stat = path.stat()
+    return _cached_inspect(str(path), stat.st_mtime_ns, stat.st_size)
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
-def figure_downloads(curves, mode, x_limits, y_limits, normalize):
+def cached_export_csv(curves):
+    return export_csv(curves)
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def cached_export_npz(curves, settings):
+    return export_npz(curves, settings)
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def cached_notebook_npy(curves):
+    buffer = io.BytesIO()
+    np.save(buffer, np.stack([np.column_stack((c["energy"], c["intensity"])) for c in curves]))
+    return buffer.getvalue()
+
+
+@st.cache_data(show_spinner=False, max_entries=8)
+def figure_downloads(curves, mode, x_limits, y_limits, normalize, dpi=300):
     fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
     for curve in curves:
         style = curve["style"]
@@ -70,7 +99,7 @@ def figure_downloads(curves, mode, x_limits, y_limits, normalize):
     result = {}
     for extension in ("svg", "png"):
         buffer = io.BytesIO()
-        fig.savefig(buffer, format=extension, dpi=300, bbox_inches="tight")
+        fig.savefig(buffer, format=extension, dpi=dpi, bbox_inches="tight")
         result[extension] = buffer.getvalue()
     plt.close(fig)
     return result
@@ -84,11 +113,6 @@ def intensity_label(mode, normalize):
 def suggested_label(path):
     match = re.search(r"(?:^|_)T(\d+(?:\.\d+)?)K(?:_|$)", Path(path).stem)
     return f"{match[1]} K" if match else Path(path).stem
-
-
-def suggested_temperature(path):
-    match = re.search(r"(?:^|_)T(\d+(?:\.\d+)?)K(?:_|$)", Path(path).stem)
-    return float(match[1]) if match and float(match[1]) > 0 else None
 
 
 def move_detector_from_click():
@@ -119,7 +143,8 @@ view = st.radio("Visualization", ["Spectra & detector", "2D scan map"], horizont
 with st.sidebar:
     st.header("Your scans")
     folder = st.text_input("Data folder", value=str(ROOT), help="Local folder on the computer running this app.")
-    st.button("Refresh files", use_container_width=True)
+    st.button("Refresh files", use_container_width=True, on_click=_cached_inspect.clear,
+             help="Force every file to be re-inspected, in case one changed without its size or modified time changing.")
     try:
         directory = Path(folder).expanduser().resolve()
         if not directory.is_dir():
@@ -132,10 +157,12 @@ with st.sidebar:
         st.info("No .npy files in this folder. Enter a folder containing your scans.")
         st.stop()
     # Inspection reads only headers; arrays with unsupported dimensions are excluded.
+    # Cached per (path, mtime, size), so an unchanged file's header is parsed
+    # once rather than on every rerun.
     scans, rejected = {}, []
     for path in available:
         try:
-            scans[str(path)] = inspect_scan(path)
+            scans[str(path)] = inspect_scan_cached(path)
         except (OSError, ValueError, EOFError) as exc:
             rejected.append(f"{path.name}: {exc}")
     if rejected:
@@ -192,9 +219,10 @@ with st.sidebar:
         n_y = min(i.shape[3] for i in six_d)
         position_options = [(x, y) for x in range(n_x) for y in range(n_y)]
         if "probe_positions" in st.session_state:
+            valid_positions = set(position_options)
             st.session_state["probe_positions"] = [
                 tuple(position) for position in st.session_state["probe_positions"]
-                if tuple(position) in position_options
+                if tuple(position) in valid_positions
             ]
         probe_positions = st.multiselect(
             "Probe positions (x, y)", position_options, default=[(0, 0)],
@@ -218,24 +246,6 @@ with st.sidebar:
         st.caption("Confirm these values for your simulation. .npy arrays do not store time calibration. Applied to every selected file.")
         ordering = st.selectbox("Input energy ordering", ["FFT-shifted (notebook default)", "Unshifted FFT"])
 
-    with st.expander("Detailed balance", expanded=True):
-        apply_detailed_balance = st.checkbox("Apply detailed-balance factor", value=False,
-                                             key="apply_detailed_balance")
-        st.latex(r"f(E,T)=\frac{\beta E}{1-e^{-\beta E}},\qquad \beta=(k_B T)^{-1}")
-        temperatures = {}
-        st.caption("Set each scan's temperature in kelvin. Values inferred from T…K filenames are editable. Positive energy means loss; f(0,T) = 1. Applied before Gaussian broadening and log display.")
-        for info, label in zip(infos, labels):
-            temperature = st.number_input(
-                f"Temperature (K) · {label}", min_value=0.000001,
-                value=suggested_temperature(info.path), step=1.0, format="%.6f",
-                key=f"temperature:{info.path}", placeholder="Enter temperature in K",
-                disabled=not apply_detailed_balance)
-            if apply_detailed_balance:
-                temperatures[info.path] = temperature
-        if apply_detailed_balance and any(t is None for t in temperatures.values()):
-            st.info("Enter a positive temperature for every selected scan to apply detailed balance.")
-            st.stop()
-
     with st.expander("Gaussian broadening", expanded=True):
         broaden = st.checkbox("Broaden EELS spectrum", value=False)
         sigma_input = st.number_input("Gaussian σ (meV)", min_value=0.0, value=1.0, step=0.5,
@@ -248,13 +258,9 @@ settings = dict(detector_radius_px=radius, center_offset_px=offset_px, center_of
                 normalize_3d=normalize, sample=sample, probe_positions_xy=probe_positions,
                 timestep_fs=timestep, stride=stride, input_energy_ordering=ordering,
                 gaussian_sigma_mev=sigma_mev, gaussian_boundary="reflect", gaussian_truncate=4.0,
-                detailed_balance_enabled=apply_detailed_balance,
-                detailed_balance_temperatures_k=temperatures,
-                detailed_balance_formula="beta*E / (1 - exp(-beta*E)); f(0)=1",
-                boltzmann_constant_mev_per_k=KB_MEV_PER_K,
                 processing_order=["detector integration / optional full-probe normalization",
-                                  "energy ordering", "optional detailed balance",
-                                  "optional Gaussian broadening", "display transform"])
+                                  "energy ordering", "optional Gaussian broadening",
+                                  "display transform"])
 curves = []
 try:
     with st.spinner("Integrating detector intensities…"):
@@ -262,20 +268,15 @@ try:
             positions = probe_positions if len(info.shape) == 6 else [(0, 0)]
             s = sample
             energy = energy_loss_axis_mev(info.canonical_shape[1], timestep, stride)
-            factor = detailed_balance_factor(energy, temperatures[info.path]) if apply_detailed_balance else None
             for x, y in positions:
                 intensity = cached_spectrum(info, s, x, y, radius, offset_px, offset_py, normalize)
                 if ordering == "Unshifted FFT":
                     intensity = np.fft.fftshift(intensity)
-                if factor is not None:
-                    intensity = intensity * factor
                 if sigma_mev > 0:
                     intensity = gaussian_broaden_spectrum(energy, intensity, sigma_mev)
                 name = f"{label} · x={x}, y={y}" if len(info.shape) == 6 else label
                 curves.append(dict(label=name, path=info.path, sample=s, probe_x=x, probe_y=y,
-                                   energy=energy, intensity=intensity,
-                                   detailed_balance_enabled=apply_detailed_balance,
-                                   temperature_k=temperatures.get(info.path)))
+                                   energy=energy, intensity=intensity))
 except (OSError, ValueError, IndexError, EOFError) as exc:
     st.error(f"Could not extract spectra: {exc}")
     st.stop()
@@ -305,7 +306,7 @@ with spectrum_tab:
         # Keep styles separate from widget state so removing/reselecting a curve
         # or editing its label does not discard its appearance during this session.
         saved_styles = st.session_state.setdefault("curve_styles", {})
-        curve_keys = [json.dumps([c["path"], c["sample"], c["probe_x"], c["probe_y"]]) for c in curves]
+        curve_keys = [curve_identity_key(c) for c in curves]
         curve_labels = dict(zip(curve_keys, [c["label"] for c in curves]))
         for i, curve_key in enumerate(curve_keys):
             saved_styles.setdefault(curve_key, dict(color=COLORS[i % len(COLORS)], line_style="Solid", width=2.0))
@@ -335,6 +336,7 @@ with spectrum_tab:
             y_limits = (y_min, y_max)
     show_hover = st.toggle("Show hover details", value=True, key="show_hover_details",
                            help="Show or hide the energy and intensity popup when hovering over the spectra.")
+    st.session_state["spectrum_render_revision"] = st.session_state.get("spectrum_render_revision", 0) + 1
     fig = go.Figure()
     for curve in curves:
         style = curve["style"]
@@ -345,16 +347,20 @@ with spectrum_tab:
                                  hovertemplate="%{y:.6g}<extra>%{fullData.name}</extra>"))
     fig.update_layout(height=500, margin=dict(l=20, r=20, t=25, b=20), template="plotly_white",
                       paper_bgcolor="rgba(0,0,0,0)", hovermode="x unified" if show_hover else False,
-                      legend=dict(orientation="h", y=-0.2, x=0),
+                      legend=dict(orientation="h", y=-0.2, x=0), uirevision="spectrum",
+                      meta=dict(eels_render_revision=st.session_state["spectrum_render_revision"]),
+                      # Preserve exploration across recalculation; explicit limit edits still apply.
                       xaxis=dict(title="Energy loss (meV)", range=x_limits, zerolinecolor="#bdcbd4",
-                                 hoverformat=".4f"),
-                      yaxis=dict(title=intensity_label(mode, normalize), range=y_limits))
-    st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False,
-                    "toImageButtonOptions": {"format": "svg", "filename": "eels_spectra"}})
-    st.caption("Drag to zoom · double-click to reset · click a legend entry to hide a curve. Downloads include every selected curve.")
-    if apply_detailed_balance:
-        st.caption("Detailed-balance correction active: " + "; ".join(
-            f"{label}: {temperatures[info.path]:g} K" for info, label in zip(infos, labels)))
+                                 hoverformat=".4f", uirevision=json.dumps(x_limits)),
+                      yaxis=dict(title=intensity_label(mode, normalize), range=y_limits,
+                                 uirevision=json.dumps(y_limits)))
+    with st.container(key="spectrum_axis_target"):
+        st.plotly_chart(fig, key="spectrum_plot", use_container_width=True, config={"displaylogo": False,
+                        "toImageButtonOptions": {"format": "svg", "filename": "eels_spectra"}})
+    axis_scaling(key="spectrum_axis_scaling", height=0)
+    st.caption("Drag inside the plot to zoom · drag an axis to move it · Shift + drag an axis to scale it "
+               "(up/right zooms in; down/left zooms out) · double-click to reset · "
+               "click a legend entry to hide a curve. Downloads include every selected curve.")
     if sigma_mev > 0:
         st.caption(f"Gaussian broadening active: σ = {sigma_mev:g} meV (FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV).")
     if mode == "log10" and any(np.any(c["intensity"] <= 0) for c in curves):
@@ -364,20 +370,19 @@ with spectrum_tab:
     settings["plot"] = dict(mode=mode, x_limits=x_limits, y_limits=y_limits, show_hover_details=show_hover)
     with st.expander("Export spectra & figures", expanded=True):
         st.caption("Data exports contain the full energy range and linear intensities. Figures use the display controls above; browser-only zoom and legend changes are not applied.")
-        if apply_detailed_balance:
-            st.caption("All downloads include the detailed-balance factor at each scan's temperature. NPZ records the temperatures and correction settings.")
         if sigma_mev > 0:
             st.caption(f"All downloads include Gaussian broadening (σ = {sigma_mev:g} meV). Turn broadening off to export unbroadened spectra; NPZ records the processing settings.")
+        png_dpi = st.selectbox("PNG export resolution", PNG_DPI_OPTIONS, index=PNG_DPI_OPTIONS.index(300),
+                               format_func=lambda d: f"{d} DPI", key="png_dpi_spectrum",
+                               help="Resolution used for the PNG figure download below.")
         exports = st.columns(5)
-        exports[0].download_button("CSV data", export_csv(curves), "eels_spectra.csv", "text/csv", use_container_width=True)
-        exports[1].download_button("NumPy + settings", export_npz(curves, settings), "eels_spectra.npz", "application/octet-stream", use_container_width=True)
+        exports[0].download_button("CSV data", cached_export_csv(curves), "eels_spectra.csv", "text/csv", use_container_width=True)
+        exports[1].download_button("NumPy + settings", cached_export_npz(curves, settings), "eels_spectra.npz", "application/octet-stream", use_container_width=True)
         if len(bins) == 1:
-            buffer = io.BytesIO()
-            np.save(buffer, np.stack([np.column_stack((c["energy"], c["intensity"])) for c in curves]))
-            exports[2].download_button("Notebook .npy", buffer.getvalue(), "eels_spectra.npy", "application/octet-stream", use_container_width=True)
+            exports[2].download_button("Notebook .npy", cached_notebook_npy(curves), "eels_spectra.npy", "application/octet-stream", use_container_width=True)
         else:
             exports[2].caption("Use NPZ for unequal energy lengths.")
-        figures = figure_downloads(curves, mode, x_limits, y_limits, normalize)
+        figures = figure_downloads(curves, mode, x_limits, y_limits, normalize, png_dpi)
         exports[3].download_button("SVG figure", figures["svg"], "eels_spectra.svg", "image/svg+xml", use_container_width=True)
         exports[4].download_button("PNG figure", figures["png"], "eels_spectra.png", "image/png", use_container_width=True)
 
@@ -390,17 +395,18 @@ with detector_tab:
     curve = curves[preview_index]
     info = scans[curve["path"]]
     axis = curve["energy"]
-    energy_index = int(np.argmin(np.abs(axis - requested_energy)))
-    raw_index = int(np.fft.fftshift(np.arange(len(axis)))[energy_index]) if ordering == "Unshifted FFT" else energy_index
+    energy_index, raw_index = nearest_energy_index(axis, requested_energy,
+                                                    unshifted=ordering == "Unshifted FFT")
     try:
-        pattern = cached_pattern(info, raw_index, curve["sample"], curve["probe_x"], curve["probe_y"])
+        pattern = cached_diffraction_pattern(info, raw_index, curve["sample"], curve["probe_x"], curve["probe_y"])
         if not np.isfinite(pattern).all():
             raise ValueError("Diffraction plane contains NaN or infinite intensities")
         if pattern_log:
-            positive = pattern[pattern > 0]
-            if not positive.size:
+            # Avoids materializing a copy of every positive value just for its minimum.
+            positive_min = np.min(pattern, where=pattern > 0, initial=np.inf)
+            if not np.isfinite(positive_min):
                 raise ValueError("This plane has no positive intensities. Turn off log diffraction image.")
-            shown = np.log10(np.clip(pattern, positive.min(), None))
+            shown = np.log10(np.clip(pattern, positive_min, None))
         else:
             shown = pattern
         center = detector_center(info, offset_px, offset_py)
@@ -454,7 +460,6 @@ with details_tab:
 - Full-probe normalization divides by the sum over **all energy bins and all pixels** at that probe.
 - Energy is `fftshift(fftfreq(n_energy, timestep_fs × stride / 1000)) × 4.13566769692386` in meV.
 - Input intensities are assumed FFT-shifted by default, as in the notebook. Choose unshifted only if your simulation output uses raw FFT ordering.
-- Optional detailed balance multiplies linear intensity by `βE / (1 − exp(−βE))`, with `β = 1/(k_B T)`, energy in meV, and a separate temperature in kelvin for each file. Positive energy means loss; the zero-energy factor is 1. It is applied after energy ordering and before Gaussian broadening, without renormalizing the corrected spectrum. Enable this only for spectra that still need this correction.
 - Optional Gaussian broadening operates on linear EELS intensity after detector integration and before log display. σ is entered in meV and converted to bins using each file's energy spacing. The kernel extends to 4σ; reflecting boundaries preserve the recorded sum without wrapping between energy endpoints. Edge features can be affected by this boundary assumption.
 
 File headers are inspected without memory mapping. Selected data is read directly in small blocks, avoiding a full-file virtual-memory reservation. Changing the plot or preview reuses cached spectra.

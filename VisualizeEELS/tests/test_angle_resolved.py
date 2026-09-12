@@ -1,5 +1,4 @@
 import io
-import json
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,7 +6,7 @@ import numpy as np
 import pytest
 
 from eels_core import (extract_angle_resolved, inspect_scan, rectangle_from_plot,
-                       process_angle_resolved, energy_loss_axis_mev, detailed_balance_factor,
+                       process_angle_resolved, energy_loss_axis_mev,
                        gaussian_broaden_spectrum)
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,9 +76,9 @@ def test_map_processing_preserves_pixel_axis():
     raw = np.random.default_rng(11).uniform(0.1, 2, (75, 4))
     raw[:, 2] = 0  # This column must not receive intensity from adjacent pixels.
     original = raw.copy()
-    result = process_angle_resolved(energy, raw, unshifted=True, temperature_k=300, sigma_mev=12)
+    result = process_angle_resolved(energy, raw, unshifted=True, sigma_mev=12)
     expected = np.column_stack([gaussian_broaden_spectrum(energy,
-        np.fft.fftshift(column) * detailed_balance_factor(energy, 300), 12) for column in raw.T])
+        np.fft.fftshift(column), 12) for column in raw.T])
     np.testing.assert_allclose(result, expected)
     np.testing.assert_array_equal(raw, original)
     assert not result[:, 2].any()
@@ -119,19 +118,17 @@ def test_angle_resolved_app_and_exports(tmp_path):
         np.testing.assert_allclose(intensity, expected)
         np.testing.assert_array_equal(pixels, np.arange(3, 9) - 5)
         assert metadata["roi_bounds_inclusive"] == [1, 4, 3, 8]
-        app.checkbox(key="apply_detailed_balance").check().run()
         next(w for w in app.checkbox if w.label == "Broaden EELS spectrum").check().run()
         energy, pixels, intensity, metadata = exported.call_args.args
         np.testing.assert_allclose(intensity, process_angle_resolved(
-            energy, expected, temperature_k=300, sigma_mev=1))
+            energy, expected, sigma_mev=1))
         with np.load(io.BytesIO(export_map(energy, pixels, intensity, metadata)), allow_pickle=False) as result:
             np.testing.assert_array_equal(result["intensity"], intensity)
-            assert json.loads(str(result["metadata_json"]))["temperature_k"] == 300
         app.selectbox(key="angle_direction").select("Vertical (px)").run()
         energy, pixels, intensity, metadata = exported.call_args.args
         np.testing.assert_array_equal(pixels, np.arange(1, 5) - 3)
         np.testing.assert_allclose(intensity, process_angle_resolved(
-            energy, data[:, 1:5, 3:9].sum(axis=2) / data.sum(), temperature_k=300, sigma_mev=1))
+            energy, data[:, 1:5, 3:9].sum(axis=2) / data.sum(), sigma_mev=1))
         assert not app.exception and not app.error
         next(w for w in app.number_input if w.label == "Row min (px)").set_value(6).run()
         assert any("minimum" in item.value for item in app.warning)
