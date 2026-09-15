@@ -80,7 +80,7 @@ def test_map_app_defaults_and_no_spectrum_extraction(tmp_path):
         app.radio(key="visualization").set_value("2D scan map").run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
         assert not app.exception and not app.error
-        assert app.text_input(key="map_energies").value == "60"
+        assert app.text_input(key="map_energies").value == "0"
         assert app.number_input(key="map_timestep").value == 5.0
         assert app.number_input(key="map_stride").value == 3
         assert app.number_input(key="map_radius").value == 21.0

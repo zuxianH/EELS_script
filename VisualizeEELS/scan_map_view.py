@@ -9,8 +9,14 @@ import numpy as np
 import plotly.graph_objects as go
 import streamlit as st
 
-from eels_core import circular_detector_mask, detector_center, detector_scan_map, energy_loss_axis_mev
+from eels_core import (circular_detector_mask, detector_center, detector_scan_map,
+                       energy_loss_axis_mev, gaussian_broaden_spectrum)
 from cache_layer import PNG_DPI_OPTIONS
+
+
+def reset_map_detector_center():
+    st.session_state["map_offset_px"] = 0
+    st.session_state["map_offset_py"] = 0
 
 
 @st.cache_data(show_spinner=False, max_entries=64)
@@ -43,9 +49,24 @@ def selected_map_bins(axis, energies, ordering):
         index = int(np.argmin(np.abs(axis - requested)))
         raw_index = int(raw_indices[index])
         entry = bins.setdefault(raw_index, dict(
-            energy_index=raw_index, selected_energy_mev=float(axis[index]), requested_energies_mev=[]))
+            energy_index=raw_index, axis_index=index,
+            selected_energy_mev=float(axis[index]), requested_energies_mev=[]))
         entry["requested_energies_mev"].append(requested)
     return list(bins.values())
+
+
+def map_broadening_weights(axis, axis_index, sigma_mev):
+    """Gaussian kernel weights, by axis position, for broadening one map across nearby energy bins.
+
+    Reuses gaussian_broaden_spectrum on a one-hot vector so the reflect-boundary
+    and truncation behavior exactly matches spectrum broadening.
+    """
+    if sigma_mev <= 0:
+        return {axis_index: 1.0}
+    onehot = np.zeros(len(axis))
+    onehot[axis_index] = 1.0
+    weights = gaussian_broaden_spectrum(axis, onehot, sigma_mev)
+    return {int(i): float(weights[i]) for i in np.flatnonzero(weights)}
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
@@ -76,24 +97,6 @@ def maps_png(scan_maps, titles, columns=3, color_limits=None, dpi=300):
         plt.close(fig)
 
 
-def map_png(scan_map, title, color_limits=None, dpi=300):
-    return maps_png([scan_map], [title], columns=1, color_limits=color_limits, dpi=dpi)
-
-
-@st.cache_data(show_spinner=False, max_entries=64)
-def map_npy_bytes(scan_map):
-    buffer = io.BytesIO()
-    np.save(buffer, scan_map)
-    return buffer.getvalue()
-
-
-@st.cache_data(show_spinner=False, max_entries=64)
-def map_npz_bytes(scan_map, metadata):
-    buffer = io.BytesIO()
-    np.savez_compressed(buffer, scan_map=scan_map, metadata_json=np.array(json.dumps(metadata)))
-    return buffer.getvalue()
-
-
 @st.cache_data(show_spinner=False, max_entries=8)
 def all_maps_npz_bytes(scan_maps, bins, base_metadata):
     metadata = dict(base_metadata, axes=["energy_map", "probe_x", "probe_y"], maps=bins)
@@ -119,66 +122,117 @@ def render_scan_map(infos, labels):
         path = st.selectbox("Map scan", list(six_d), format_func=lambda p: six_d[p][1], key="map_scan")
         info, _ = six_d[path]
         sample = 0
-        energy_text = st.text_input("Map energies (meV)", value="60", key="map_energies",
+        energy_text = st.text_input("Map energies (meV)", value="0", key="map_energies",
                                     help="Enter one or more energies separated by commas, for example: 20, 40, 60, 80.")
         shared_scale = st.checkbox("Shared color scale", value=True, key="map_shared_scale",
                                    help="Use the same intensity range across all maps. Turn off to show each map's spatial contrast on its own scale.")
+        manual_scale = st.checkbox("Set intensity scale manually", value=False, key="map_manual_scale",
+                                   help="Override the automatic color range with fixed min/max values, applied to all maps.")
+        manual_limits = None
+        if manual_scale:
+            lo_col, hi_col = st.columns(2)
+            manual_limits = (lo_col.number_input("Intensity min (a.u.)", value=0.0, format="%.6g", key="map_color_min"),
+                             hi_col.number_input("Intensity max (a.u.)", value=1.0, format="%.6g", key="map_color_max"))
         columns_per_row = st.number_input("Maps per row", min_value=1, max_value=12, value=3, step=1,
                                           key="map_columns",
                                           help="Grid layout for the panels below and the combined PNG export, e.g. 2 for a 2-wide grid, 1 to stack maps in a single column.")
         radius = st.number_input("Detector radius (pixels)", min_value=0.1, value=21.0,
                                  step=1.0, key="map_radius")
-        st.caption("Center offsets from (px // 2, py // 2), in detector pixels.")
+        st.caption("Center offsets from (px // 2, py // 2). px is the vertical image axis; py is horizontal.")
+        offset_cols = st.columns(2)
         offsets = []
-        for axis, size in zip(("px", "py"), info.shape[-2:]):
+        for col, axis, size in zip(offset_cols, ("px", "py"), info.shape[-2:]):
             key = f"map_offset_{axis}"
             lo, hi = -(size // 2), (size - 1) // 2
             if key in st.session_state:
                 st.session_state[key] = max(lo, min(hi, st.session_state[key]))
-            offsets.append(st.number_input(f"{axis} offset", min_value=lo, max_value=hi,
-                                           value=0, step=1, key=key))
-        timestep = st.number_input("Simulation time step (fs)", min_value=0.000001,
-                                   value=5.0, step=0.5, format="%.6f", key="map_timestep")
-        stride = st.number_input("Sampling stride", min_value=1, value=3, step=1, key="map_stride")
-        ordering = st.selectbox("Input energy ordering", ["FFT-shifted (notebook default)", "Unshifted FFT"],
-                                key="map_ordering")
-        st.caption("Confirm the time calibration for this simulation. The map covers every probe x and y.")
+            offsets.append(col.number_input(f"{axis} offset", min_value=lo, max_value=hi,
+                                            value=0, step=1, key=key))
+        st.button("Reset detector center", on_click=reset_map_detector_center,
+                 use_container_width=True, key="map_reset_center")
+        with st.expander("Energy calibration", expanded=True):
+            timestep = st.number_input("Simulation time step (fs)", min_value=0.000001,
+                                       value=5.0, step=0.5, format="%.6f", key="map_timestep")
+            stride = st.number_input("Sampling stride", min_value=1, value=3, step=1, key="map_stride")
+            st.caption("Confirm the time calibration for this simulation. The map covers every probe x and y.")
+            ordering = st.selectbox("Input energy ordering", ["FFT-shifted (notebook default)", "Unshifted FFT"],
+                                    key="map_ordering")
+        with st.expander("Gaussian broadening", expanded=True):
+            broaden = st.checkbox("Broaden EELS scan map", value=False, key="map_broaden")
+            sigma_input = st.number_input("Gaussian σ (meV)", min_value=0.0, value=1.0, step=0.5,
+                                          disabled=not broaden, key="map_sigma",
+                                          help="Standard deviation of the Gaussian, applied across nearby energy "
+                                               "bins before summing each map.")
+            sigma_mev = sigma_input if broaden else 0.0
+            if broaden:
+                st.caption(f"FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV. Each map becomes a "
+                          "Gaussian-weighted sum over nearby energy bins.")
     st.subheader("2D scan maps")
     st.caption("Raw detector-summed intensity at each selected energy bin, shown on a linear color scale. "
-               "Map controls are independent of spectrum controls; normalization and broadening "
-               "do not apply to these maps.")
+               "Map controls are independent of spectrum controls; normalization does not apply to these maps. "
+               "Optional Gaussian broadening (sidebar) sums each map over nearby energy bins.")
     try:
         requested_energies = parse_map_energies(energy_text)
         axis = energy_loss_axis_mev(info.shape[1], timestep, stride)
         bins = selected_map_bins(axis, requested_energies, ordering)
+        raw_indices = np.arange(len(axis))
+        if ordering == "Unshifted FFT":
+            raw_indices = np.fft.fftshift(raw_indices)
         center = detector_center(info, *offsets)
         mask = circular_detector_mask(info.shape[-2:], center, radius)
+
+        def broadened_scan_map(entry):
+            total = None
+            for index, weight in map_broadening_weights(axis, entry["axis_index"], sigma_mev).items():
+                contribution = weight * cached_scan_map(info, int(raw_indices[index]), sample, radius, *offsets)
+                total = contribution if total is None else total + contribution
+            return total
+
         with st.spinner("Summing the detector across probe rows at selected energies…"):
             # Each read reduces one energy slice to a small map before the next
             # energy is read. Only these reduced maps are kept in memory.
-            scan_maps = [cached_scan_map(info, entry["energy_index"], sample, radius, *offsets)
-                         for entry in bins]
-        limits = ((min(float(m.min()) for m in scan_maps), max(float(m.max()) for m in scan_maps))
-                  if shared_scale else None)
+            scan_maps = [broadened_scan_map(entry) for entry in bins]
+        if manual_scale:
+            if manual_limits[0] >= manual_limits[1]:
+                st.error("Intensity min must be less than intensity max.")
+                return
+            limits = manual_limits
+        else:
+            limits = ((min(float(m.min()) for m in scan_maps), max(float(m.max()) for m in scan_maps))
+                      if shared_scale else None)
         metrics = st.columns(3)
         metrics[0].metric("Energy maps", len(bins))
         metrics[1].metric("Probe positions", str(scan_maps[0].size))
         metrics[2].metric("Detector pixels", str(int(mask.sum())))
         if len(bins) < len(requested_energies):
             st.info("Some requested energies select the same recorded bin; each distinct bin is shown once.")
-        st.caption(f"Detector center (px, py) = {center}. Horizontal = probe x; vertical = probe y. "
-                   + ("Shared intensity range across all maps." if shared_scale else "Each map uses its own intensity range."))
-        png_dpi = st.selectbox("PNG export resolution", PNG_DPI_OPTIONS, index=PNG_DPI_OPTIONS.index(300),
-                               format_func=lambda d: f"{d} DPI", key="png_dpi_scan_map",
-                               help="Resolution used for the PNG downloads below.")
+        if manual_scale:
+            range_caption = f"Manual intensity range [{limits[0]:.6g}, {limits[1]:.6g}] applied to all maps."
+        elif shared_scale:
+            range_caption = "Shared intensity range across all maps."
+        else:
+            range_caption = "Each map uses its own intensity range."
+        st.caption(f"Detector center (px, py) = {center}. Horizontal = probe x; vertical = probe y. " + range_caption)
         base_metadata = dict(source_file=info.path, sample=sample,
                              timestep_fs=timestep, stride=stride, input_energy_ordering=ordering,
                              detector_radius_px=radius, detector_center_px_py=center,
                              axes=["probe_x", "probe_y"], intensity="raw detector sum",
-                             shared_color_scale=shared_scale, color_limits=limits)
+                             gaussian_sigma_mev=sigma_mev,
+                             shared_color_scale=shared_scale, manual_color_scale=manual_scale,
+                             color_limits=limits)
         titles = [f"{entry['selected_energy_mev']:.6g} meV" for entry in bins]
         stem = f"{Path(info.path).stem}_scan_map"
         n_columns = min(columns_per_row, len(bins))
+        # Reserve fixed pixel margins for the title, axis labels, and colorbar, then size
+        # the panel so the plotting area itself (width/height minus those margins) is
+        # already square. Plotly's colorbar length tracks the *declared* axis domain, not
+        # the smaller box "constrain: domain" draws when it has to correct a mismatch, so
+        # building a square domain up front (rather than relying on that correction) is
+        # what keeps the colorbar the same height as the map.
+        margin = dict(l=55, r=90, t=45, b=55)
+        content_side = 560 if n_columns == 1 else max(220, min(480, 1400 // n_columns))
+        panel_width = content_side + margin["l"] + margin["r"]
+        panel_height = content_side + margin["t"] + margin["b"]
         for start in range(0, len(bins), n_columns):
             panels = st.columns(n_columns)
             for panel, i in zip(panels, range(start, min(start + n_columns, len(bins)))):
@@ -189,23 +243,24 @@ def render_scan_map(infos, labels):
                         st.info("This detector-integrated map is all zero; no spatial contrast is present in this slice.")
                     figure = go.Figure(go.Heatmap(
                         x=np.arange(scan_map.shape[0]), y=np.arange(scan_map.shape[1]), z=scan_map.T,
-                        colorscale="Viridis", zsmooth=False, colorbar=dict(title="Intensity (a.u.)"),
+                        colorscale="Viridis", zsmooth=False,
+                        colorbar=dict(title="Intensity (a.u.)", thickness=18),
                         zmin=limits[0] if limits else None, zmax=limits[1] if limits else None,
                         hovertemplate="probe x=%{x}<br>probe y=%{y}<br>Intensity=%{z:.6g}<extra></extra>"))
                     figure.update_layout(
-                        title=title, height=650 if len(bins) == 1 else 450,
-                        template="plotly_white", margin=dict(l=30, r=20, t=80, b=40),
-                        xaxis=dict(title="Probe x (index)", range=[-0.5, scan_map.shape[0] - 0.5], constrain="domain"),
-                        yaxis=dict(title="Probe y (index)", range=[-0.5, scan_map.shape[1] - 0.5], scaleanchor="x", scaleratio=1))
+                        title=title, width=panel_width, height=panel_height,
+                        template="plotly_white", margin=margin,
+                        xaxis=dict(title="Probe x (index)", range=[-0.5, scan_map.shape[0] - 0.5]),
+                        yaxis=dict(title="Probe y (index)", range=[-0.5, scan_map.shape[1] - 0.5],
+                                  scaleanchor="x", scaleratio=1))
                     panel_stem = f"{stem}_E{raw_index}"
-                    st.plotly_chart(figure, key=f"scan_map_plot:{raw_index}", use_container_width=True,
+                    st.plotly_chart(figure, key=f"scan_map_plot:{raw_index}", use_container_width=False,
                                     config={"displaylogo": False, "toImageButtonOptions": {"format": "png", "filename": panel_stem}})
-                    metadata = dict(base_metadata, **entry)
-                    st.download_button("Map .npy", map_npy_bytes(scan_map), panel_stem + ".npy", "application/octet-stream", key=f"map_npy:{raw_index}")
-                    st.download_button("Map + settings .npz", map_npz_bytes(scan_map, metadata), panel_stem + ".npz", "application/octet-stream", key=f"map_npz:{raw_index}")
-                    st.download_button("Map PNG", map_png(scan_map, title, limits, png_dpi), panel_stem + ".png", "image/png", key=f"map_png:{raw_index}")
         if len(bins) > 1:
             st.subheader("Download all maps")
+            png_dpi = st.selectbox("PNG export resolution", PNG_DPI_OPTIONS, index=PNG_DPI_OPTIONS.index(300),
+                                   format_func=lambda d: f"{d} DPI", key="png_dpi_scan_map",
+                                   help="Resolution used for the PNG download below.")
             exports = st.columns(2)
             exports[0].download_button("All maps + settings .npz", all_maps_npz_bytes(scan_maps, bins, base_metadata),
                                        stem + "s.npz", "application/octet-stream", key="all_maps_npz")
