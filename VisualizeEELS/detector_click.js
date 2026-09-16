@@ -13,7 +13,7 @@ export default function ({ data, setTriggerValue }) {
     };
     const connect = () => {
         const next = document.querySelector(".st-key-detector_click_target .js-plotly-plot");
-        if (chart) chart.removeListener("plotly_click", onClick);
+        if (chart) chart.removeListener?.("plotly_click", onClick);
         chart = next && typeof next.on === "function" ? next : null;
         // Streamlit clears Plotly listeners during updates even if it reuses
         // the same DOM node. Reattach our handler after those DOM changes.
@@ -32,6 +32,6 @@ export default function ({ data, setTriggerValue }) {
     return () => {
         observer.disconnect();
         document.removeEventListener("pointerdown", prepareClick, true);
-        if (chart) chart.removeListener("plotly_click", onClick);
+        if (chart) chart.removeListener?.("plotly_click", onClick);
     };
 }

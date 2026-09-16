@@ -18,7 +18,7 @@ export default function ({ data, setTriggerValue }) {
     const selector = ".st-key-angle_rectangle_target";
     const connect = () => {
         const next = document.querySelector(`${selector} .js-plotly-plot`);
-        if (chart) chart.removeListener("plotly_relayout", onRelayout);
+        if (chart) chart.removeListener?.("plotly_relayout", onRelayout);
         chart = next && typeof next.on === "function" ? next : null;
         if (chart) chart.on("plotly_relayout", onRelayout);
     };
@@ -32,6 +32,6 @@ export default function ({ data, setTriggerValue }) {
     return () => {
         observer.disconnect();
         document.removeEventListener("pointerdown", prepareDraw, true);
-        if (chart) chart.removeListener("plotly_relayout", onRelayout);
+        if (chart) chart.removeListener?.("plotly_relayout", onRelayout);
     };
 }

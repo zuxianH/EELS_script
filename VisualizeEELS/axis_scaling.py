@@ -1,4 +1,4 @@
-"""Preserve the spectrum viewport and add modifier-key scaling without Python reruns."""
+"""Preserve plot viewports and add modifier-key scaling without Python reruns."""
 from pathlib import Path
 
 import streamlit.components.v2 as components

@@ -1,4 +1,4 @@
-"""Optional real-browser coverage: requires Playwright and a local Chrome binary."""
+"""Optional real-browser coverage: requires Playwright and Firefox or a local Chrome binary."""
 import os
 from pathlib import Path
 import shutil
@@ -16,8 +16,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_draw_and_resize_rectangle_in_browser(tmp_path):
-    chrome = shutil.which("google-chrome") or shutil.which("chromium")
-    if not chrome:
+    chrome = os.environ.get("EELS_CHROME_PATH") or shutil.which("google-chrome") or shutil.which("chromium")
+    engine = os.environ.get("EELS_BROWSER", "chromium")
+    if engine == "chromium" and not chrome:
         pytest.skip("Chrome/Chromium is not installed")
     energy, rows, columns = np.indices((41, 60, 80))
     np.save(tmp_path / "scan_T300K.npy", 1.0 + energy + rows / 10 + columns / 100)
@@ -38,7 +39,8 @@ def test_draw_and_resize_rectangle_in_browser(tmp_path):
                     pytest.fail("Streamlit server exited")
                 time.sleep(0.1)
         with playwright.sync_playwright() as driver:
-            browser = driver.chromium.launch(executable_path=chrome, headless=True)
+            browser = getattr(driver, engine).launch(
+                **({"executable_path": chrome} if engine == "chromium" else {}), headless=True)
             page = browser.new_page(viewport={"width": 1700, "height": 1300})
             page.set_default_timeout(30000)
             page.goto(f"http://127.0.0.1:{port}")

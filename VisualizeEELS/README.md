@@ -90,3 +90,155 @@ Files with unsupported shapes/dtypes appear under **unsupported files**. Object 
 Tests check direct reads, 2D maps, and extraction against the actual notebook functions, check 3D and 6D inputs, shifted detectors, click-coordinate conversion, Gaussian width and boundary behavior, normalization, invalid inputs, exports, and application interactions.
 
 The optional axis-gesture browser test needs Playwright and a browser. Install with `.venv/bin/python -m pip install playwright` and `.venv/bin/python -m playwright install firefox`, then run `EELS_BROWSER=firefox .venv/bin/python -m pytest -q tests/test_axis_browser.py`. Alternatively, set `EELS_CHROME_PATH` to an installed Chrome/Chromium executable.
+
+## Background subtraction (extracted 1D spectra)
+
+Subtraction starts disabled. Open **Background**, choose **arPLS** (default) or
+**SNIP**, set a fit domain, and press **Preview** to fit only the selected curve.
+The two preview panels share their energy axis: muted input and a dashed baseline
+above, corrected intensity below. Requested and actual bin-aligned fit bounds are
+shown above the chart; both panels shade the actual fitted interval. Editing a fit
+setting clears the old preview until **Preview** is pressed again. A new preview
+updates the traces and shading while preserving your viewing zoom.
+The initial preview focuses on the selected fit interval, with intensity limits
+computed from samples inside that interval so an off-screen zero-loss peak does
+not flatten the visible signal. **Focus fit interval** restores this view after
+manual zooming; **Show full spectrum** restores the recorded domain and its
+intensity range. These view controls never refit or modify the fitting bounds,
+signed data, applied results, or exports. Full-domain fitting initially shows the
+full recorded domain; use axis gestures to inspect a smaller region.
+**Preview intensity display** defaults to **Linear**,
+with signed residuals and a zero reference. Select **log10** to inspect the input,
+baseline, and positive residuals over a wider dynamic range. Nonpositive samples
+are masked with gaps; the zero reference is hidden because log10(0) is undefined.
+Switching display preserves the fit, signed arrays, exports, and energy zoom;
+intensity axes rescale for the changed units. Fitting always uses linear intensity.
+Hold **Shift**
+and drag either panel's axis to scale about its midpoint: **up/right zooms in**,
+**down/left zooms out**. Both energy axes move together; each intensity axis scales
+independently. Plain axis drags pan, and the toolbar resets axes. Preview and Spectra
+keep separate viewports, retained across reruns for the selected curve. These gestures
+only change the view, never the fit interval or baseline. Preview
+never changes the main spectra or downloads. **Apply to all spectra** independently
+fits every selected 3D-file/6D-probe curve and commits only if every fit is valid.
+It selects **Corrected** in Spectra. Use **Input / Corrected** there to choose the
+plotted and exported signal. **Reset background** clears results and restores Input
+without changing extraction, styles, calibration, or plot limits.
+
+Draft controls, preview results, and applied results are separate. Unapplied edits
+are labelled and never change applied exports; changing controls hides a stale
+preview. Changes to source revision, detector/probe selection, normalization,
+calibration/ordering, or Gaussian broadening invalidate results. Settings remain
+available for refitting. Adding/removing curves clears the whole applied batch;
+renaming or recoloring a curve does not. Fits run only on explicit actions and are
+cached on the small extracted 1D arrays. Baseline adjustments reuse extraction
+caches and never read a full 6D scan. Detector previews and both map modes are
+unaffected, including their exports and provenance.
+
+### Domain and processing
+
+**Selected energy interval** starts with editable common positive-energy coverage
+when it contains at least eight bins per curve; otherwise it uses common recorded
+coverage. These are initial bounds, not a zero-loss-tail exclusion: the first
+positive-energy bin may still be in the tail. If no valid common interval exists,
+choose compatible curves or use full recorded domains. A local interval should
+include useful information about the background around the peak.
+
+Selected bounds must be finite, ordered, and fully covered by every target curve.
+Bins inside the inclusive requested bounds are fitted, rounding endpoints inward
+to the recorded grid. At least **eight bins** are required. Diagnostics record
+requested and actual bin-aligned bounds. No interval is silently shortened to fit
+an incompatible curve. **Full recorded spectrum** uses each curve's own domain and
+reports coverage differences. Domains containing zero energy produce a warning;
+no zero-loss exclusion or gain/loss mirroring is performed. Intervals are contiguous;
+arbitrary masked-region fitting is not supported. Fit bounds are independent of
+view limits and browser zoom, so zooming onto a peak does not refit.
+
+The deliberate processing order is:
+
+```
+detector extraction / optional full-probe normalization
+→ energy ordering → optional Gaussian broadening
+→ background estimation and subtraction → display transform
+```
+
+Fitting uses linear, energy-unweighted intensity **after broadening**, never log10,
+normalized plot coordinates, or an energy-weighted display. Changing Gaussian
+sigma requires a new fit; this ordering does not imply the operations commute.
+“Normalize full probe block” retains its existing definition, dividing by the full
+probe-block sum, not the detector spectrum's area. There is no renormalization after
+subtraction. Input arrays and original grids are preserved, without interpolation.
+
+Within the fitted interval, `corrected = input - baseline`. Negative residuals are
+retained; neither baseline positivity nor zero-valued valleys are imposed. Outside
+it, full-length baseline/corrected arrays contain NaN with a false validity mask.
+There is no extrapolation, zero filling, or splicing in uncorrected intensities.
+Corrected log10 plots mask nonpositive samples and leave gaps, in Plotly and
+Matplotlib exports alike. Linear arrays/downloads retain signed values. Input log10
+plots retain the legacy clipping behavior.
+
+### Parameters and limitations
+
+- **arPLS:** maintained `pybaselines.Baseline.arpls`, pinned to tested pybaselines
+  1.2.1, with second-order differences. Synchronized slider/numeric controls expose
+  `log10(lambda)` from 2–10, initially 5 (`lambda=1e5`). Larger lambda gives a
+  smoother baseline. This is a starting point, not a TACAW optimum. Advanced
+  tolerance and maximum iterations initially equal `1e-3` and `100`. Tolerance
+  history, finite outputs, and library warnings determine validity. Nonconverged
+  fits are rejected. Exactly constant inputs have a distinct constant-baseline,
+  zero-residual status; almost-flat spectra do not use that shortcut. Different
+  energy spacings mean equal numerical lambda need not give equal smoothing in
+  energy units.
+- **SNIP:** maintained `pybaselines.Baseline.snip` with `decreasing=True`,
+  `filter_order=2`, and `smooth_half_window=None`. The maximum half-window is in
+  **meV**, converted independently to the nearest bin on each grid (half ties
+  rounded up). Both bins and effective meV are reported. The converted window must
+  be from 1 through `(fitted_bins - 1) // 2`; incompatible requests are rejected,
+  never clamped. SNIP uses linear intensity without a logarithmic transformation.
+  Diagnostics report completion/window size, not an arPLS convergence statistic.
+
+An empirical baseline may remove genuine broad vibrational intensity. Subtraction
+is an analysis choice, not automatic identification of nonphysical background.
+Check parameter and interval sensitivity. It neither corrects Fourier leakage nor
+validates multiphonon intensity. Approximate synthetic recovery tests do not establish
+recovery of arbitrary broad physical features.
+
+### Background export schema 1
+
+Without an applied background, legacy export formats and values remain unchanged.
+With an applied background, CSV and NPZ explicitly record the selected **Input** or
+**Corrected** signal; figures match it and label subtracted intensity. Preview
+results are never exported. Partial-domain corrected notebook `.npy` downloads are
+unavailable because they cannot carry mask/provenance: use NPZ, or select Input to
+retain the original notebook export. Full-domain corrected `.npy` filenames contain
+`corrected`.
+
+**Background results CSV** contains one row per full energy bin, with curve/source/
+probe identity, energy, signal selection, input intensity, baseline, corrected
+intensity, and validity mask. Unfitted values are empty fields. The first row's
+`metadata_json` field records the complete provenance. The regular signal CSV uses
+one `intensity` column and the same signal/provenance fields.
+
+**Background results NPZ** and the applied **NumPy + settings** export contain:
+
+- `schema_version`: scalar integer, currently 1.
+- `curve_000`, etc.: established two-column `[energy_meV, selected_signal]` arrays.
+- `curve_000_energy`, `_input`, `_baseline`, `_corrected`, `_validity_mask` (and so
+  on): independent full-length arrays, supporting unequal curve lengths.
+- `metadata_json`: non-pickled JSON with exported signal, applied configuration,
+  algorithm parameters, requested/actual bounds, energy spacing, solver diagnostics,
+  source/probe identity, input fingerprints, extraction settings, processing order,
+  fitted input stage, curve styles, and pybaselines version.
+
+Load with `np.load(path, allow_pickle=False)`. Arrays are stored separately from
+JSON-safe curve metadata. Baseline/corrected entries outside the mask are NaN.
+
+API references: [arPLS](https://pybaselines.readthedocs.io/en/stable/generated/api/pybaselines.Baseline.arpls.html),
+[SNIP](https://pybaselines.readthedocs.io/en/stable/generated/api/pybaselines.Baseline.snip.html).
+
+Background-specific synthetic and state tests run with
+`python -m pytest -q tests/test_background.py`. With Playwright Firefox installed,
+use `EELS_BROWSER=firefox python -m pytest -q tests/test_axis_browser.py tests/test_angle_browser.py tests/test_background_browser.py`
+for axis gestures, rectangle selection, applying without losing zoom, and
+1700/760/390-pixel layout checks. Set `EELS_BACKGROUND_SCREENSHOTS` to an existing
+directory to retain desktop and narrow-screen captures.

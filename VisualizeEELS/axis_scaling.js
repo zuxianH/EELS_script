@@ -1,23 +1,26 @@
 // Shift-drag an axis to zoom about its midpoint. Plain drags stay with Plotly.
-export default function () {
-    const selector = ".st-key-spectrum_axis_target .js-plotly-plot";
+export default function ({ data }) {
+    const selector = data?.selector ?? ".st-key-spectrum_axis_target .js-plotly-plot";
     // Streamlit may replace the whole Plotly node when the spectrum changes.
     // Keep the user's viewport in this browser tab, across component remounts.
-    const viewKey = Symbol.for("eels.spectrum.viewport");
+    const viewKey = Symbol.for(data?.viewport_key ?? "eels.spectrum.viewport");
     const views = window[viewKey] ??= {};
+    const axisNames = (layout) => Object.keys(layout ?? {}).filter(name => /^[xy]axis\d*$/.test(name));
+    const axisRevision = (layout, axis) => layout[axis]?.uirevision ?? layout.uirevision;
     let chart = null;
     let lastRender = null;
     let restoring = false;
     const rememberView = (event) => {
         if (restoring || !chart?._fullLayout) return;
-        for (const axis of ["xaxis", "yaxis"]) {
-            if (!Object.keys(event).some(key => key === `${axis}.autorange` ||
-                key === `${axis}.range` || key.startsWith(`${axis}.range[`))) continue;
+        if (!Object.keys(event).some(key => /^[xy]axis\d*\.(autorange|range)/.test(key))) return;
+        // A relayout can also move matched axes without listing them in its payload.
+        // Remember their actual ranges together so restoring never unlinks subplots.
+        for (const axis of axisNames(chart._fullLayout)) {
             const layout = chart._fullLayout[axis];
             if (layout.autorange) {
                 delete views[axis];
             } else if (layout.range?.every(Number.isFinite)) {
-                views[axis] = { range: [...layout.range], revision: layout.uirevision };
+                views[axis] = { range: [...layout.range], revision: axisRevision(chart._fullLayout, axis) };
             }
         }
     };
@@ -27,11 +30,11 @@ export default function () {
         if (revision === undefined || revision === lastRender || restoring) return;
         lastRender = revision;
         const update = {};
-        for (const axis of ["xaxis", "yaxis"]) {
+        for (const axis of axisNames(layout)) {
             const saved = views[axis];
             if (!saved) continue;
             // Numeric limit edits intentionally replace the saved view of that axis.
-            if (saved.revision !== layout[axis]?.uirevision) {
+            if (saved.revision !== axisRevision(layout, axis)) {
                 delete views[axis];
                 continue;
             }
@@ -47,9 +50,10 @@ export default function () {
     };
     const connect = () => {
         const next = document.querySelector(selector);
+        // Plotly.purge removes emitter methods before Streamlit detaches the node.
         if (chart) {
-            chart.removeListener("plotly_relayout", rememberView);
-            chart.removeListener("plotly_afterplot", restoreView);
+            chart.removeListener?.("plotly_relayout", rememberView);
+            chart.removeListener?.("plotly_afterplot", restoreView);
         }
         if (next !== chart) lastRender = null;
         chart = next && typeof next.on === "function" ? next : null;
@@ -95,7 +99,7 @@ export default function () {
         }
         event.preventDefault();
         event.stopImmediatePropagation();
-        const distance = drag.axis === "xaxis"
+        const distance = drag.horizontal
             ? event.clientX - drag.x : drag.y - event.clientY;
         // One axis-length of movement changes the span by a factor of four.
         const factor = Math.exp(Math.max(-8, Math.min(8, -distance / drag.length * Math.log(4))));
@@ -114,14 +118,20 @@ export default function () {
         if (!chart || typeof window.Plotly?.relayout !== "function") return;
         const target = event.target.closest(".ewdrag, .wdrag, .edrag, .nsdrag, .ndrag, .sdrag");
         if (!target || !chart.contains(target)) return;
-        const axis = target.matches(".ewdrag, .wdrag, .edrag") ? "xaxis" : "yaxis";
+        // Plotly groups each subplot's drag handles under its axis pair (xy,
+        // x2y2, ...). Resolve the handle's own axis, including the lower panel.
+        const subplot = target.closest("g")?.getAttribute("class")?.match(/(?:^|\s)(x\d*)(y\d*)(?:\s|$)/);
+        if (!subplot) return;
+        const horizontal = target.matches(".ewdrag, .wdrag, .edrag");
+        const axisId = subplot[horizontal ? 1 : 2];
+        const axis = `${axisId[0]}axis${axisId.slice(1)}`;
         const layout = chart._fullLayout?.[axis];
         if (!layout || layout.fixedrange || !["linear", "log"].includes(layout.type)) return;
         const [low, high] = layout.range;
         if (![low, high].every(Number.isFinite) || low === high || !(layout._length > 0)) return;
         event.preventDefault();
         event.stopImmediatePropagation();
-        drag = { chart, axis, x: event.clientX, y: event.clientY,
+        drag = { chart, axis, horizontal, x: event.clientX, y: event.clientY,
                  length: layout._length, midpoint: low / 2 + high / 2,
                  halfSpan: high / 2 - low / 2 };
     };
@@ -140,9 +150,10 @@ export default function () {
         disposed = true;
         observer.disconnect();
         document.removeEventListener("pointerdown", prepareInteraction, true);
+        // Plotly.purge removes emitter methods before Streamlit detaches the node.
         if (chart) {
-            chart.removeListener("plotly_relayout", rememberView);
-            chart.removeListener("plotly_afterplot", restoreView);
+            chart.removeListener?.("plotly_relayout", rememberView);
+            chart.removeListener?.("plotly_afterplot", restoreView);
         }
         drag = pending = null;
         if (frame !== null) cancelAnimationFrame(frame);

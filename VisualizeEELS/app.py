@@ -8,6 +8,9 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
+# Plotly's optional-import lookup reads sys.modules without waiting for an import
+# in another Streamlit thread. Finish pandas initialization before building plots.
+import pandas  # noqa: F401
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -21,6 +24,9 @@ from scan_map_view import render_scan_map
 from detector_click import register_detector_click_bridge
 from angle_resolved import render_angle_resolved
 from axis_scaling import register_axis_scaling
+from background_core import BackgroundState, config_caption, corrected_display, input_fingerprints
+from background_exports import background_csv, background_npz
+from background_view import render_background
 
 ROOT = Path(__file__).resolve().parent
 detector_click_bridge = register_detector_click_bridge()
@@ -82,15 +88,15 @@ def cached_notebook_npy(curves):
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
-def figure_downloads(curves, mode, x_limits, y_limits, normalize, dpi=300):
+def figure_downloads(curves, mode, x_limits, y_limits, normalize, dpi=300, corrected=False):
     fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
     for curve in curves:
         style = curve["style"]
-        ax.plot(curve["energy"], display_intensity(curve["intensity"], mode),
+        ax.plot(curve["energy"], (corrected_display if corrected else display_intensity)(curve["intensity"], mode),
                 label=curve["label"], color=style["color"], linewidth=style["width"],
                 linestyle=LINE_STYLES[style["line_style"]][1])
     ax.set_xlabel("Energy loss (meV)")
-    ax.set_ylabel(intensity_label(mode, normalize))
+    ax.set_ylabel(intensity_label(mode, normalize, corrected))
     ax.set_xlim(*x_limits)
     if y_limits is not None:
         ax.set_ylim(*y_limits)
@@ -105,8 +111,10 @@ def figure_downloads(curves, mode, x_limits, y_limits, normalize, dpi=300):
     return result
 
 
-def intensity_label(mode, normalize):
+def intensity_label(mode, normalize, corrected=False):
     base = "Normalized detector intensity" if normalize else "Detector intensity"
+    if corrected:
+        base = "Background-subtracted " + base.lower()
     return f"log10({base.lower()})" if mode == "log10" else base
 
 
@@ -289,9 +297,26 @@ metrics[2].metric("Energy bins", " / ".join(map(str, bins)))
 resolutions = sorted({round(float(c["energy"][1] - c["energy"][0]), 6) for c in curves if len(c["energy"]) > 1})
 metrics[3].metric("Resolution (meV)", " / ".join(f"{v:.3f}" for v in resolutions) or "—")
 
-spectrum_tab, detector_tab, angle_tab, details_tab = st.tabs(
-    ["Spectra", "Detector preview", "Angle-resolved EELS", "Files & method"])
+background_state = st.session_state.setdefault("background_state", BackgroundState())
+revisions = {info.path: (info.mtime_ns, info.size) for info in infos}
+background_state.source_revisions = revisions
+had_background = bool(background_state.applied_results)
+if background_state.sync_inputs(input_fingerprints(curves, settings, revisions)):
+    st.session_state["bg_signal"] = "Input"
+    if had_background:
+        st.info("Background results cleared because inputs or selected curves changed. Settings are retained for refitting.")
+if "bg_next_signal" in st.session_state:
+    st.session_state["bg_signal"] = st.session_state.pop("bg_next_signal")
+spectrum_tab, background_tab, detector_tab, angle_tab, details_tab = st.tabs(
+    ["Spectra", "Background", "Detector preview", "Angle-resolved EELS", "Files & method"])
 with spectrum_tab:
+    signal = st.radio("Spectrum signal", ["Input", "Corrected"],
+                      horizontal=True, key="bg_signal", disabled=not background_state.applied_results,
+                      help="Corrected becomes available after a valid batch is applied in Background.")
+    background_state.signal = signal
+    corrected = signal == "Corrected"
+    if background_state.applied_results:
+        st.caption(f"{signal} · Applied: " + config_caption(background_state.applied_config))
     controls = st.columns([1.3, 1, 1])
     mode_label = controls[0].selectbox("Intensity display", ["log10", "Linear"])
     mode = "log10" if mode_label == "log10" else "linear"
@@ -337,11 +362,13 @@ with spectrum_tab:
     show_hover = st.toggle("Show hover details", value=True, key="show_hover_details",
                            help="Show or hide the energy and intensity popup when hovering over the spectra.")
     st.session_state["spectrum_render_revision"] = st.session_state.get("spectrum_render_revision", 0) + 1
+    shown_curves = [dict(c, intensity=background_state.applied_results[curve_identity_key(c)].corrected)
+                    for c in curves] if corrected else curves
     fig = go.Figure()
-    for curve in curves:
+    for curve in shown_curves:
         style = curve["style"]
-        fig.add_trace(go.Scatter(x=curve["energy"], y=display_intensity(curve["intensity"], mode),
-                                 name=curve["label"], mode="lines",
+        fig.add_trace(go.Scatter(x=curve["energy"], y=(corrected_display if corrected else display_intensity)(curve["intensity"], mode),
+                                 name=curve["label"], mode="lines", connectgaps=False,
                                  line=dict(color=style["color"], width=style["width"],
                                            dash=LINE_STYLES[style["line_style"]][0]),
                                  hovertemplate="%{y:.6g}<extra>%{fullData.name}</extra>"))
@@ -352,7 +379,7 @@ with spectrum_tab:
                       # Preserve exploration across recalculation; explicit limit edits still apply.
                       xaxis=dict(title="Energy loss (meV)", range=x_limits, zerolinecolor="#bdcbd4",
                                  hoverformat=".4f", uirevision=json.dumps(x_limits)),
-                      yaxis=dict(title=intensity_label(mode, normalize), range=y_limits,
+                      yaxis=dict(title=intensity_label(mode, normalize, corrected), range=y_limits,
                                  uirevision=json.dumps(y_limits)))
     with st.container(key="spectrum_axis_target"):
         st.plotly_chart(fig, key="spectrum_plot", use_container_width=True, config={"displaylogo": False,
@@ -363,7 +390,9 @@ with spectrum_tab:
                "click a legend entry to hide a curve. Downloads include every selected curve.")
     if sigma_mev > 0:
         st.caption(f"Gaussian broadening active: σ = {sigma_mev:g} meV (FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV).")
-    if mode == "log10" and any(np.any(c["intensity"] <= 0) for c in curves):
+    if corrected and mode == "log10":
+        st.caption("Nonpositive corrected samples are masked in log10 display (gaps are not connected). Signed linear residuals remain in data exports.")
+    if not corrected and mode == "log10" and any(np.any(c["intensity"] <= 0) for c in curves):
         st.caption("Nonpositive values are clipped to the smallest positive float for log10 display, matching the notebook. Exported data keeps the original values.")
     if not any(np.any((c["energy"] >= x_min) & (c["energy"] <= x_max)) for c in curves):
         st.warning("The selected energy window contains no data bins.")
@@ -375,16 +404,39 @@ with spectrum_tab:
         png_dpi = st.selectbox("PNG export resolution", PNG_DPI_OPTIONS, index=PNG_DPI_OPTIONS.index(300),
                                format_func=lambda d: f"{d} DPI", key="png_dpi_spectrum",
                                help="Resolution used for the PNG figure download below.")
+        if background_state.applied_results:
+            st.caption(f"Exported signal: {signal}. Unfitted bins are missing (NaN), never zero-filled.")
+        if background_state.applied_results:
+            csv_data = background_csv(curves, settings, background_state, signal, all_arrays=False)
+            npz_data = background_npz(curves, settings, background_state, signal)
+            export_stem = f"eels_spectra_{signal.lower()}"
+        else:
+            csv_data, npz_data = cached_export_csv(curves), cached_export_npz(curves, settings)
+            export_stem = "eels_spectra"
         exports = st.columns(5)
-        exports[0].download_button("CSV data", cached_export_csv(curves), "eels_spectra.csv", "text/csv", use_container_width=True)
-        exports[1].download_button("NumPy + settings", cached_export_npz(curves, settings), "eels_spectra.npz", "application/octet-stream", use_container_width=True)
-        if len(bins) == 1:
-            exports[2].download_button("Notebook .npy", cached_notebook_npy(curves), "eels_spectra.npy", "application/octet-stream", use_container_width=True)
+        exports[0].download_button("CSV data", csv_data, export_stem + ".csv", "text/csv", use_container_width=True)
+        exports[1].download_button("NumPy + settings", npz_data, export_stem + ".npz",
+                                   "application/octet-stream", use_container_width=True)
+        partial_corrected = corrected and any(not r.validity_mask.all() for r in background_state.applied_results.values())
+        if partial_corrected:
+            exports[2].caption("Partial corrected fits require masked NPZ. Select Input for the original notebook .npy export.")
+        elif len(bins) == 1:
+            exports[2].download_button("Notebook .npy", cached_notebook_npy(shown_curves), "eels_spectra_corrected.npy" if corrected else "eels_spectra.npy", "application/octet-stream", use_container_width=True)
         else:
             exports[2].caption("Use NPZ for unequal energy lengths.")
-        figures = figure_downloads(curves, mode, x_limits, y_limits, normalize, png_dpi)
-        exports[3].download_button("SVG figure", figures["svg"], "eels_spectra.svg", "image/svg+xml", use_container_width=True)
-        exports[4].download_button("PNG figure", figures["png"], "eels_spectra.png", "image/png", use_container_width=True)
+        figures = figure_downloads(shown_curves, mode, x_limits, y_limits, normalize, png_dpi, corrected)
+        exports[3].download_button("SVG figure", figures["svg"], export_stem + ".svg", "image/svg+xml", use_container_width=True)
+        exports[4].download_button("PNG figure", figures["png"], export_stem + ".png", "image/png", use_container_width=True)
+
+        if background_state.applied_results:
+            background_downloads = st.columns(2)
+            background_downloads[0].download_button("Background results CSV", background_csv(curves, settings, background_state, signal),
+                "eels_background.csv", "text/csv", use_container_width=True)
+            background_downloads[1].download_button("Background results NPZ", npz_data,
+                "eels_background.npz", "application/octet-stream", use_container_width=True)
+
+with background_tab:
+    render_background(curves, background_state)
 
 with detector_tab:
     preview_cols = st.columns([2, 1, 1])
