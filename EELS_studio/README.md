@@ -196,6 +196,35 @@ plots retain the legacy clipping behavior.
   be from 1 through `(fitted_bins - 1) // 2`; incompatible requests are rejected,
   never clamped. SNIP uses linear intensity without a logarithmic transformation.
   Diagnostics report completion/window size, not an arPLS convergence statistic.
+- **power / power0 / exppoly / pVoigt:** analytic models ported from
+  [Vibrational-EELS_background_subtraction](https://github.com/PanGroup-UCI/Vibrational-EELS_background_subtraction)
+  (MATLAB; Yan et al., *Nature* **645**, 893–899, 2025):
+  `power`: `a0·x^-a1 + a2`; `power0`: `a0·x^-a1` (a third parameter is accepted for
+  interface parity with `power` but has no effect, matching the MATLAB model);
+  `exppoly`: `a0·exp(-a1·x + a2·x² - a3·x³) + a5`; `pVoigt`:
+  `g·exp(a4·x⁴ - a2·x²) + h/(w2 + x²) + c0`; `x` is energy (meV) divided by the
+  **energy scale factor**. Unlike arPLS/SNIP's single contiguous interval, these fit
+  bounded nonlinear least squares (`scipy.optimize.curve_fit`, trust-region
+  reflective) on 2–4 flanking **segments** that exclude the peak, then evaluate and
+  subtract the background across the whole span from the first segment's start to
+  the last segment's end — including the peak region between them. Segments default
+  to evenly spaced windows over each selected spectrum set's common positive-energy
+  coverage; `power`/`power0` start/bounds default to the toolkit's STO example,
+  `exppoly`/`pVoigt` defaults are generic starting points that need tuning per
+  dataset. **Auto-detect segments from peak** replaces them with windows flanking the
+  preview spectrum's detected peak(s) instead: it finds local maxima on
+  log(intensity) with `scipy.signal.find_peaks` (so detection is relative — at least
+  a ~15% local rise — rather than compared to the domain's absolute intensity range,
+  which a steeply decaying power-law/exponential background would otherwise dwarf),
+  estimates each one's footprint with `scipy.signal.peak_widths`, and fills the
+  widest remaining gaps between them (splitting the widest gap in half if fewer gaps
+  than segments are available). It is a starting point, not a substitute for checking
+  the preview plot — it can miss a peak below that threshold or pick the wrong one
+  for a noisy or multi-featured spectrum; segments remain fully editable afterward.
+  A pixel/spectrum whose segments contain no data, or whose solver does not
+  converge or emits a warning, is rejected the same way a nonconverged arPLS fit is.
+  Coefficient uncertainties are a normal-approximation 95% CI (`1.96·√diag(pcov)`),
+  not bit-identical to MATLAB's t-distribution-based nonlinear-regression CI.
 
 An empirical baseline may remove genuine broad vibrational intensity. Subtraction
 is an analysis choice, not automatic identification of nonphysical background.
@@ -237,7 +266,8 @@ API references: [arPLS](https://pybaselines.readthedocs.io/en/stable/generated/a
 [SNIP](https://pybaselines.readthedocs.io/en/stable/generated/api/pybaselines.Baseline.snip.html).
 
 Background-specific synthetic and state tests run with
-`python -m pytest -q tests/test_background.py`. With Playwright Firefox installed,
+`python -m pytest -q tests/test_background.py tests/test_background_analytic.py`.
+With Playwright Firefox installed,
 use `EELS_BROWSER=firefox python -m pytest -q tests/test_axis_browser.py tests/test_angle_browser.py tests/test_background_browser.py`
 for axis gestures, rectangle selection, applying without losing zoom, and
 1700/760/390-pixel layout checks. Set `EELS_BACKGROUND_SCREENSHOTS` to an existing

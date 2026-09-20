@@ -250,8 +250,8 @@ def test_app_background_workflow_processing_and_maps(tmp_path):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60).run()
         widget(app, "text_input", "Data folder").set_value(str(tmp_path)).run()
         assert not app.exception and not app.error
-        assert [t.label for t in app.tabs][:3] == ["Spectra", "Background", "Detector preview"]
-        assert app.radio(key="bg_signal").disabled
+        assert [t.label for t in app.tabs][:2] == ["Spectra", "Background"]
+        assert not any(w.key == "bg_signal" for w in app.radio)  # hidden until a fit is applied
         assert fitted.call_count == 0  # hidden-tab rendering never fits
         widget(app, "selectbox", "Input energy ordering").select("Unshifted FFT").run()
         widget(app, "checkbox", "Broaden EELS spectrum").check().run()
@@ -293,7 +293,8 @@ def test_app_background_workflow_processing_and_maps(tmp_path):
             assert "background estimation and subtraction" not in metadata["settings"]["processing_order"]
         widget(app, "number_input", "Gaussian σ (meV)").set_value(8.).run()
         assert not app.session_state["background_state"].applied_results
-        assert app.radio(key="bg_signal").value == "Input"
+        assert app.session_state["background_state"].signal == "Input"
+        assert not any(w.key == "bg_signal" for w in app.radio)  # hidden again once results are cleared
         app.button(key="bg_apply").click().run()
         assert app.session_state["background_state"].applied_results
         app.button(key="bg_reset").click().run()

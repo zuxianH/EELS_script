@@ -184,7 +184,7 @@ def test_app_scan_selection(tmp_path):
     assert app.metric[0].value == "2"
     assert app.metric[2].value == "600"
     assert app.metric[3].value == "0.919"
-    radius = next(w for w in app.number_input if w.label == "Detector radius (pixels)")
+    radius = next(w for w in app.number_input if w.label == "radius")
     radius.set_value(12.0).run()
     assert not app.exception
     assert not app.error
@@ -231,6 +231,28 @@ def test_app_six_dimensional_files(tmp_path):
         assert not app.exception
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(ROOT)).run()
         assert not app.exception and not app.error
+
+
+def test_app_detector_preview_toggle_shows_and_hides_beside_spectrum(tmp_path):
+    from streamlit.testing.v1 import AppTest
+
+    np.save(tmp_path / "scan.npy", np.random.default_rng(3).uniform(1, 2, (2, 7, 3, 3, 8, 8)))
+    app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
+    next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
+    assert not app.exception and not app.error
+    # The sidebar's "Detector preview" picker stays available regardless of the toggle.
+    assert any(w.label == "Preview spectrum" for w in app.selectbox)
+    shown_charts = len(app.get("plotly_chart"))
+
+    app.toggle(key="show_detector_preview").set_value(False).run()
+    assert not app.exception and not app.error
+    assert any(w.label == "Preview spectrum" for w in app.selectbox)
+    assert len(app.get("plotly_chart")) == shown_charts - 1
+
+    app.toggle(key="show_detector_preview").set_value(True).run()
+    assert not app.exception and not app.error
+    assert any(w.label == "Preview spectrum" for w in app.selectbox)
+    assert len(app.get("plotly_chart")) == shown_charts
 
 
 def test_app_gaussian_broadening_processing_and_exports(tmp_path):

@@ -127,24 +127,43 @@ def test_supported_npy_header_versions(tmp_path, version):
     np.testing.assert_array_equal(diffraction_pattern(inspect_scan(path), 1), data[1])
 
 
-@pytest.mark.parametrize("text", ["", " , ; ", "20, bad", "nan", "10, inf"])
+@pytest.mark.parametrize("text", ["", " , ; ", "20, bad", "nan", "10, inf", "20-10"])
 def test_invalid_map_energy_list(text):
     from scan_map_view import parse_map_energies
     with pytest.raises(ValueError):
         parse_map_energies(text)
 
 
+def test_map_energy_list_parses_points_and_ranges():
+    from scan_map_view import parse_map_energies
+    requests = parse_map_energies("20, -40; 6e1\n60.01 10-20")
+    assert requests == [(20, 20), (-40, -40), (60, 60), (60.01, 60.01), (10, 20)]
+
+
 def test_map_energy_list_and_duplicate_bins():
     from scan_map_view import parse_map_energies, selected_map_bins
-    energies = parse_map_energies("20, -40; 6e1\n60.01")
-    assert energies == [20, -40, 60, 60.01]
+    requests = parse_map_energies("20, -40; 6e1\n60.01")
     axis = np.array([-60., -40., -20., 0., 20., 40., 60.])
     for ordering in ("FFT-shifted (notebook default)", "Unshifted FFT"):
-        bins = selected_map_bins(axis, energies, ordering)
-        assert [b["selected_energy_mev"] for b in bins] == [20, -40, 60]
-        assert bins[2]["requested_energies_mev"] == [60, 60.01]
+        bins = selected_map_bins(axis, requests, ordering)
+        assert [b["bin_energies_mev"] for b in bins] == [[20], [-40], [60]]
+        assert bins[2]["requested"] == [[60, 60], [60.01, 60.01]]
         expected = [4, 1, 6] if ordering.startswith("FFT-shifted") else [1, 5, 3]
-        assert [b["energy_index"] for b in bins] == expected
+        assert [b["energy_indices"] for b in bins] == [[i] for i in expected]
+
+
+def test_map_energy_range_sums_every_enclosed_bin():
+    from scan_map_view import bin_title, selected_map_bins
+    axis = np.array([-60., -40., -20., 0., 20., 40., 60.])
+    bins = selected_map_bins(axis, [(-25, 25)], "FFT-shifted (notebook default)")
+    assert len(bins) == 1
+    entry = bins[0]
+    assert entry["axis_indices"] == [2, 3, 4]
+    assert entry["bin_energies_mev"] == [-20, 0, 20]
+    assert entry["energy_indices"] == [2, 3, 4]
+    assert bin_title(entry) == "-20–20 meV (3 bins)"
+    with pytest.raises(ValueError, match="No energy bins"):
+        selected_map_bins(axis, [(21, 25)], "FFT-shifted (notebook default)")
 
 
 def test_app_multiple_energy_maps_and_exports(tmp_path):
@@ -163,17 +182,20 @@ def test_app_multiple_energy_maps_and_exports(tmp_path):
         assert not app.exception and not app.error
         assert app.metric[0].value == "3"
         assert len(app.get("plotly_chart")) == 3
-        assert any("same recorded bin" in message.value for message in app.info)
+        assert any("recorded bins" in message.value for message in app.info)
         axis = energy_loss_axis_mev(7, 5, 3)
         indices = np.array([np.argmin(abs(axis - energy)) for energy in (-100, 0, 60)])
         expected = np.stack([data[0, i].sum(axis=(-2, -1)) for i in indices])
         result = exports.call_args.kwargs
         np.testing.assert_array_equal(result["scan_maps"], expected)
-        np.testing.assert_array_equal(result["energy_indices"], indices)
         np.testing.assert_array_equal(result["selected_energies_mev"], axis[indices])
+        np.testing.assert_array_equal(result["energy_lo_mev"], axis[indices])
+        np.testing.assert_array_equal(result["energy_hi_mev"], axis[indices])
+        np.testing.assert_array_equal(result["bin_count"], [1, 1, 1])
         metadata = json.loads(str(result["metadata_json"]))
         assert metadata["axes"] == ["energy_map", "probe_x", "probe_y"]
-        assert metadata["maps"][-1]["requested_energies_mev"] == [60, 60.01]
+        assert metadata["maps"][-1]["requested"] == [[60, 60], [60.01, 60.01]]
+        assert metadata["maps"][-1]["energy_indices"] == [int(indices[-1])]
         for chart in app.get("plotly_chart"):
             trace = json.loads(chart.proto.spec)["data"][0]
             assert trace["zmin"] == expected.min() and trace["zmax"] == expected.max()
@@ -187,7 +209,8 @@ def test_app_multiple_energy_maps_and_exports(tmp_path):
         app.selectbox(key="map_ordering").select("Unshifted FFT").run()
         assert not app.exception and not app.error
         raw_indices = np.fft.fftshift(np.arange(7))[indices]
-        np.testing.assert_array_equal(exports.call_args.kwargs["energy_indices"], raw_indices)
+        metadata = json.loads(str(exports.call_args.kwargs["metadata_json"]))
+        np.testing.assert_array_equal([m["energy_indices"][0] for m in metadata["maps"]], raw_indices)
         np.testing.assert_array_equal(exports.call_args.kwargs["scan_maps"],
                                       np.stack([data[0, i].sum(axis=(-2, -1)) for i in raw_indices]))
         before = reads.call_count
@@ -195,3 +218,36 @@ def test_app_multiple_energy_maps_and_exports(tmp_path):
         assert not app.exception
         assert any("numeric map energies" in message.value for message in app.error)
         assert reads.call_count == before
+
+
+def test_app_energy_range_sums_every_enclosed_bin(tmp_path):
+    from streamlit.testing.v1 import AppTest
+    from scan_map_view import cached_scan_map
+
+    data = np.arange(1, 1 + 7 * 3 * 4 * 5 * 6, dtype=float).reshape(1, 7, 3, 4, 5, 6)
+    np.save(tmp_path / "range_energy.npy", data)
+    cached_scan_map.clear()
+    with patch("scan_map_view.np.savez_compressed", wraps=np.savez_compressed) as exports:
+        app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
+        app.radio(key="visualization").set_value("2D scan map").run()
+        next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
+        app.text_input(key="map_energies").set_value("0, -120--70").run()
+        assert not app.exception and not app.error
+        assert app.metric[0].value == "2"
+        assert len(app.get("plotly_chart")) == 2
+        axis = energy_loss_axis_mev(7, 5, 3)
+        point_index = int(np.argmin(abs(axis - 0)))
+        range_indices = np.flatnonzero((axis >= -120) & (axis <= -70))
+        assert len(range_indices) > 1  # the fixture only exercises a real sum when >1 bin falls inside it
+        expected = np.stack([
+            data[0, point_index].sum(axis=(-2, -1)),
+            data[0, range_indices].sum(axis=(0, -2, -1)),
+        ])
+        result = exports.call_args.kwargs
+        np.testing.assert_array_equal(result["scan_maps"], expected)
+        np.testing.assert_array_equal(result["bin_count"], [1, len(range_indices)])
+        np.testing.assert_allclose(result["energy_lo_mev"], [axis[point_index], axis[range_indices].min()])
+        np.testing.assert_allclose(result["energy_hi_mev"], [axis[point_index], axis[range_indices].max()])
+        metadata = json.loads(str(result["metadata_json"]))
+        assert metadata["maps"][-1]["requested"] == [[-120, -70]]
+        assert metadata["maps"][-1]["energy_indices"] == sorted(int(i) for i in range_indices)

@@ -48,8 +48,7 @@ def test_draw_and_resize_rectangle_in_browser(tmp_path):
             folder.fill(str(tmp_path))
             folder.press("Enter")
             page.get_by_role("tab", name="Angle-resolved EELS", exact=True).click()
-            # Streamlit's visible label overlays its native checkbox input.
-            page.get_by_text("Enable angle-resolved map", exact=True).click()
+            # Enabled by default now; no click needed.
             playwright.expect(page.get_by_role("checkbox", name="Enable angle-resolved map", exact=True)).to_be_checked()
             chart = page.locator(".st-key-angle_rectangle_target .js-plotly-plot")
             chart.wait_for(state="visible")

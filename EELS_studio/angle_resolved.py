@@ -81,7 +81,7 @@ def map_figures(energy, pixels, shown, title, xlabel, color_label, energy_limits
 
 def render_angle_resolved(curves, scans, settings):
     st.caption("Draw a rectangle on the diffraction image to form an energy-versus-pixel map. The selected strip is summed across one detector direction.")
-    if not st.checkbox("Enable angle-resolved map", key="angle_enabled"):
+    if not st.checkbox("Enable angle-resolved map", value=True, key="angle_enabled"):
         return
     # Stable identifiers prevent a scan reorder from silently selecting another probe.
     choices = {curve_identity_key(c): c for c in curves}

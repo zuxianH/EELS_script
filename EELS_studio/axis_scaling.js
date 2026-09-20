@@ -141,10 +141,19 @@ export default function ({ data }) {
         drag = null;
     };
     const blur = () => { drag = null; };
+    // Plotly's own scrollZoom listener occasionally misses a preventDefault during a
+    // fast scroll burst, letting the delta fall through to the page. Cancel the
+    // browser's default scroll for every wheel event over the chart, in the capture
+    // phase, so the page never scrolls no matter how Plotly's handler keeps up;
+    // propagation continues so Plotly still sees the event and zooms normally.
+    const wheel = (event) => {
+        if (event.target.closest?.(selector)) event.preventDefault();
+    };
     // Delegation survives Streamlit replacing the chart on a rerun.
     document.addEventListener("mousedown", start, true);
     document.addEventListener("mousemove", move, true);
     document.addEventListener("mouseup", end, true);
+    document.addEventListener("wheel", wheel, true);
     window.addEventListener("blur", blur);
     return () => {
         disposed = true;
@@ -160,6 +169,7 @@ export default function ({ data }) {
         document.removeEventListener("mousedown", start, true);
         document.removeEventListener("mousemove", move, true);
         document.removeEventListener("mouseup", end, true);
+        document.removeEventListener("wheel", wheel, true);
         window.removeEventListener("blur", blur);
     };
 }

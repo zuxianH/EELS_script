@@ -1,4 +1,4 @@
-"""Interactive raw detector map at selected energies of a 6D probe scan."""
+"""Interactive raw detector map at selected energies or energy ranges of a 6D probe scan."""
 import io
 import json
 import re
@@ -25,34 +25,75 @@ def cached_scan_map(info, raw_index, sample, radius, offset_px, offset_py):
                              offset_px=offset_px, offset_py=offset_py)
 
 
+_NUMBER = r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"
+_RANGE_PATTERN = re.compile(rf"^(?P<lo>{_NUMBER})-(?P<hi>{_NUMBER})$")
+
+
 def parse_map_energies(text):
-    """Parse finite meV values separated by commas, semicolons, or whitespace."""
+    """Parse map energy requests separated by commas, semicolons, or whitespace.
+
+    A plain value like "20" requests the single nearest stored bin. A range like
+    "10-20" requests every bin whose energy falls within that window, inclusive.
+    Returns a list of (lo, hi) tuples, with lo == hi for plain values.
+    """
     tokens = [token for token in re.split(r"[,;\s]+", text.strip()) if token]
     if not tokens:
-        raise ValueError("Enter at least one map energy, for example: 20, 40, 60")
-    try:
-        energies = [float(token) for token in tokens]
-    except ValueError:
-        raise ValueError("Enter numeric map energies separated by commas, for example: 20, 40, 60") from None
-    if not np.isfinite(energies).all():
-        raise ValueError("Map energies must be finite numbers")
-    return energies
+        raise ValueError("Enter at least one map energy or range, for example: 20, 40, 10-20")
+    requests = []
+    for token in tokens:
+        match = _RANGE_PATTERN.match(token)
+        if match:
+            lo, hi = float(match["lo"]), float(match["hi"])
+        else:
+            try:
+                lo = hi = float(token)
+            except ValueError:
+                raise ValueError(
+                    "Enter numeric map energies or ranges separated by commas, for example: 20, 40, 10-20"
+                ) from None
+        if not (np.isfinite(lo) and np.isfinite(hi)):
+            raise ValueError("Map energies must be finite numbers")
+        if lo > hi:
+            raise ValueError(f"Range '{token}' must have its lower bound first, for example: 10-20")
+        requests.append((lo, hi))
+    return requests
 
 
-def selected_map_bins(axis, energies, ordering):
-    """Group requests mapping to the same stored bin, preserving input order."""
+def selected_map_bins(axis, requests, ordering):
+    """Group requests mapping to the same set of stored bins, preserving input order.
+
+    A point request (lo == hi) picks the single nearest bin. A range request sums
+    every bin whose energy falls within [lo, hi], inclusive.
+    """
     raw_indices = np.arange(len(axis))
     if ordering == "Unshifted FFT":
         raw_indices = np.fft.fftshift(raw_indices)
     bins = {}
-    for requested in energies:
-        index = int(np.argmin(np.abs(axis - requested)))
-        raw_index = int(raw_indices[index])
-        entry = bins.setdefault(raw_index, dict(
-            energy_index=raw_index, axis_index=index,
-            selected_energy_mev=float(axis[index]), requested_energies_mev=[]))
-        entry["requested_energies_mev"].append(requested)
-    return list(bins.values())
+    order = []
+    for lo, hi in requests:
+        if lo == hi:
+            axis_indices = (int(np.argmin(np.abs(axis - lo))),)
+        else:
+            axis_indices = tuple(i for i in range(len(axis)) if lo <= axis[i] <= hi)
+            if not axis_indices:
+                raise ValueError(f"No energy bins fall within {lo:g}-{hi:g} meV")
+        if axis_indices not in bins:
+            bins[axis_indices] = dict(
+                axis_indices=list(axis_indices),
+                energy_indices=[int(raw_indices[i]) for i in axis_indices],
+                bin_energies_mev=[float(axis[i]) for i in axis_indices],
+                requested=[])
+            order.append(axis_indices)
+        bins[axis_indices]["requested"].append([lo, hi])
+    return [bins[key] for key in order]
+
+
+def bin_title(entry):
+    """Panel title for a bin entry: a single energy, or a summed range with its bin count."""
+    energies = entry["bin_energies_mev"]
+    if len(energies) == 1:
+        return f"{energies[0]:.6g} meV"
+    return f"{energies[0]:.6g}–{energies[-1]:.6g} meV ({len(energies)} bins)"
 
 
 def map_broadening_weights(axis, axis_index, sigma_mev):
@@ -100,10 +141,13 @@ def maps_png(scan_maps, titles, columns=3, color_limits=None, dpi=300):
 @st.cache_data(show_spinner=False, max_entries=8)
 def all_maps_npz_bytes(scan_maps, bins, base_metadata):
     metadata = dict(base_metadata, axes=["energy_map", "probe_x", "probe_y"], maps=bins)
+    energies = [entry["bin_energies_mev"] for entry in bins]
     buffer = io.BytesIO()
     np.savez_compressed(buffer, scan_maps=np.stack(scan_maps),
-                        selected_energies_mev=np.array([entry["selected_energy_mev"] for entry in bins]),
-                        energy_indices=np.array([entry["energy_index"] for entry in bins]),
+                        selected_energies_mev=np.array([float(np.mean(e)) for e in energies]),
+                        energy_lo_mev=np.array([e[0] for e in energies]),
+                        energy_hi_mev=np.array([e[-1] for e in energies]),
+                        bin_count=np.array([len(e) for e in energies]),
                         metadata_json=np.array(json.dumps(metadata)))
     return buffer.getvalue()
 
@@ -123,7 +167,8 @@ def render_scan_map(infos, labels):
         info, _ = six_d[path]
         sample = 0
         energy_text = st.text_input("Map energies (meV)", value="0", key="map_energies",
-                                    help="Enter one or more energies separated by commas, for example: 20, 40, 60, 80.")
+                                    help="Enter one or more energies separated by commas, for example: 20, 40, 60, 80. "
+                                         "Use lo-hi for a range summed over every bin inside it, for example: 10-20.")
         shared_scale = st.checkbox("Shared color scale", value=True, key="map_shared_scale",
                                    help="Use the same intensity range across all maps. Turn off to show each map's spatial contrast on its own scale.")
         manual_scale = st.checkbox("Set intensity scale manually", value=False, key="map_manual_scale",
@@ -138,7 +183,6 @@ def render_scan_map(infos, labels):
                                           help="Grid layout for the panels below and the combined PNG export, e.g. 2 for a 2-wide grid, 1 to stack maps in a single column.")
         radius = st.number_input("Detector radius (pixels)", min_value=0.1, value=21.0,
                                  step=1.0, key="map_radius")
-        st.caption("Center offsets from (px // 2, py // 2). px is the vertical image axis; py is horizontal.")
         offset_cols = st.columns(2)
         offsets = []
         for col, axis, size in zip(offset_cols, ("px", "py"), info.shape[-2:]):
@@ -146,7 +190,7 @@ def render_scan_map(infos, labels):
             lo, hi = -(size // 2), (size - 1) // 2
             if key in st.session_state:
                 st.session_state[key] = max(lo, min(hi, st.session_state[key]))
-            offsets.append(col.number_input(f"{axis} offset", min_value=lo, max_value=hi,
+            offsets.append(col.number_input(f"${axis[0]}_{axis[1]}$ offset", min_value=lo, max_value=hi,
                                             value=0, step=1, key=key))
         st.button("Reset detector center", on_click=reset_map_detector_center,
                  use_container_width=True, key="map_reset_center")
@@ -169,12 +213,13 @@ def render_scan_map(infos, labels):
                           "Gaussian-weighted sum over nearby energy bins.")
     st.subheader("2D scan maps")
     st.caption("Raw detector-summed intensity at each selected energy bin, shown on a linear color scale. "
+               "A range (e.g. 10-20) sums every bin within that window into one map. "
                "Map controls are independent of spectrum controls; normalization does not apply to these maps. "
                "Optional Gaussian broadening (sidebar) sums each map over nearby energy bins.")
     try:
-        requested_energies = parse_map_energies(energy_text)
+        requests = parse_map_energies(energy_text)
         axis = energy_loss_axis_mev(info.shape[1], timestep, stride)
-        bins = selected_map_bins(axis, requested_energies, ordering)
+        bins = selected_map_bins(axis, requests, ordering)
         raw_indices = np.arange(len(axis))
         if ordering == "Unshifted FFT":
             raw_indices = np.fft.fftshift(raw_indices)
@@ -183,9 +228,10 @@ def render_scan_map(infos, labels):
 
         def broadened_scan_map(entry):
             total = None
-            for index, weight in map_broadening_weights(axis, entry["axis_index"], sigma_mev).items():
-                contribution = weight * cached_scan_map(info, int(raw_indices[index]), sample, radius, *offsets)
-                total = contribution if total is None else total + contribution
+            for axis_index in entry["axis_indices"]:
+                for index, weight in map_broadening_weights(axis, axis_index, sigma_mev).items():
+                    contribution = weight * cached_scan_map(info, int(raw_indices[index]), sample, radius, *offsets)
+                    total = contribution if total is None else total + contribution
             return total
 
         with st.spinner("Summing the detector across probe rows at selected energies…"):
@@ -204,8 +250,9 @@ def render_scan_map(infos, labels):
         metrics[0].metric("Energy maps", len(bins))
         metrics[1].metric("Probe positions", str(scan_maps[0].size))
         metrics[2].metric("Detector pixels", str(int(mask.sum())))
-        if len(bins) < len(requested_energies):
-            st.info("Some requested energies select the same recorded bin; each distinct bin is shown once.")
+        if len(bins) < len(requests):
+            st.info("Some requested energies or ranges select the same set of recorded bins; "
+                    "each distinct selection is shown once.")
         if manual_scale:
             range_caption = f"Manual intensity range [{limits[0]:.6g}, {limits[1]:.6g}] applied to all maps."
         elif shared_scale:
@@ -220,7 +267,7 @@ def render_scan_map(infos, labels):
                              gaussian_sigma_mev=sigma_mev,
                              shared_color_scale=shared_scale, manual_color_scale=manual_scale,
                              color_limits=limits)
-        titles = [f"{entry['selected_energy_mev']:.6g} meV" for entry in bins]
+        titles = [bin_title(entry) for entry in bins]
         stem = f"{Path(info.path).stem}_scan_map"
         n_columns = min(columns_per_row, len(bins))
         # Reserve fixed pixel margins for the title, axis labels, and colorbar, then size
@@ -238,7 +285,7 @@ def render_scan_map(infos, labels):
             for panel, i in zip(panels, range(start, min(start + n_columns, len(bins)))):
                 with panel:
                     entry, scan_map, title = bins[i], scan_maps[i], titles[i]
-                    raw_index = entry["energy_index"]
+                    panel_key = "-".join(str(index) for index in entry["energy_indices"])
                     if np.all(scan_map == 0):
                         st.info("This detector-integrated map is all zero; no spatial contrast is present in this slice.")
                     figure = go.Figure(go.Heatmap(
@@ -253,8 +300,8 @@ def render_scan_map(infos, labels):
                         xaxis=dict(title="Probe x (index)", range=[-0.5, scan_map.shape[0] - 0.5]),
                         yaxis=dict(title="Probe y (index)", range=[-0.5, scan_map.shape[1] - 0.5],
                                   scaleanchor="x", scaleratio=1))
-                    panel_stem = f"{stem}_E{raw_index}"
-                    st.plotly_chart(figure, key=f"scan_map_plot:{raw_index}", use_container_width=False,
+                    panel_stem = f"{stem}_E{panel_key}"
+                    st.plotly_chart(figure, key=f"scan_map_plot:{panel_key}", use_container_width=False,
                                     config={"displaylogo": False, "toImageButtonOptions": {"format": "png", "filename": panel_stem}})
         if len(bins) > 1:
             st.subheader("Download all maps")

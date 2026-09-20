@@ -161,7 +161,7 @@ def test_zoom_survives_detector_changes_and_explicit_limits_still_apply(spectrum
 
     def change_radius(value):
         first_y = chart.evaluate("c => c._fullData[0].y[0]")
-        radius = page.get_by_role("spinbutton", name="Detector radius (pixels)", exact=True)
+        radius = page.get_by_role("spinbutton", name="radius", exact=True)
         radius.fill(str(value))
         radius.press("Enter")
         page.wait_for_function("""oldValue => {
@@ -212,7 +212,7 @@ def test_zoom_survives_detector_changes_and_explicit_limits_still_apply(spectrum
     wait_for_view(scaled)
     np.testing.assert_allclose(ranges(), scaled, rtol=1e-8)
 
-    # Explicit axis limits override only the axis the user edits.
+    # Explicit x-axis limits override only that axis; the y-axis exploration persists.
     minimum = page.get_by_role("spinbutton", name="Energy min (meV)", exact=True)
     minimum.fill("-100")
     minimum.press("Enter")
@@ -221,10 +221,26 @@ def test_zoom_survives_detector_changes_and_explicit_limits_still_apply(spectrum
         return r[0] === -100 && r[1] === 150;
     }""")
     np.testing.assert_allclose(ranges()[1], scaled[1], rtol=1e-8)
-    page.get_by_text("Vertical plot limits", exact=True).click()
-    page.get_by_text("Set intensity limits", exact=True).click()
-    page.wait_for_function("""() => {
-        const r = document.querySelector('.st-key-spectrum_axis_target .js-plotly-plot')._fullLayout.yaxis.range;
-        return r[0] === -10 && r[1] === 0;
-    }""")
-    np.testing.assert_allclose(ranges()[0], [-100, 150])
+
+
+def test_fast_scroll_zooms_without_scrolling_the_page(spectrum_page):
+    page = spectrum_page
+    chart = page.locator(".st-key-spectrum_axis_target .js-plotly-plot")
+
+    def ranges():
+        return chart.evaluate("c => [c._fullLayout.xaxis.range, c._fullLayout.yaxis.range]")
+
+    chart.scroll_into_view_if_needed()
+    box = chart.bounding_box()
+    page.mouse.move(box["x"] + box["width"] / 2, box["y"] + box["height"] / 2)
+    before = ranges()
+    before_scroll = page.evaluate("() => window.scrollY")
+    # A burst of large-delta wheel events emulates a fast trackpad flick, which is
+    # exactly the case where Plotly's own scrollZoom handler can miss a preventDefault.
+    for _ in range(20):
+        page.mouse.wheel(0, -300)
+    page.wait_for_function("""before => {
+        const r = document.querySelector('.st-key-spectrum_axis_target .js-plotly-plot')._fullLayout.xaxis.range;
+        return r[1] - r[0] < (before[1] - before[0]) * 0.5;
+    }""", arg=before[0])
+    assert page.evaluate("() => window.scrollY") == before_scroll

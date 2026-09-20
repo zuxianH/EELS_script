@@ -15,7 +15,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from eels_core import (
-    circular_detector_mask, curve_identity_key, detector_center, display_intensity,
+    curve_identity_key, detector_center, display_intensity,
     detector_offsets_from_click, energy_loss_axis_mev, export_csv, export_npz,
     extract_spectrum, gaussian_broaden_spectrum, inspect_scan, nearest_energy_index,
 )
@@ -24,6 +24,7 @@ from scan_map_view import render_scan_map
 from detector_click import register_detector_click_bridge
 from angle_resolved import render_angle_resolved
 from axis_scaling import register_axis_scaling
+from equal_height import register_equal_height
 from background_core import BackgroundState, config_caption, corrected_display, input_fingerprints
 from background_exports import background_csv, background_npz
 from background_view import render_background
@@ -31,6 +32,7 @@ from background_view import render_background
 ROOT = Path(__file__).resolve().parent
 detector_click_bridge = register_detector_click_bridge()
 axis_scaling = register_axis_scaling()
+equal_height = register_equal_height()
 COLORS = ["#137c78", "#dd7848", "#626cc6", "#c24c79", "#7a9845", "#428fbd"]
 LINE_STYLES = {
     "Solid": ("solid", "-"),
@@ -38,17 +40,32 @@ LINE_STYLES = {
     "Dotted": ("dot", ":"),
     "Dash-dot": ("dashdot", "-."),
 }
+
+# Color for the Detector/Spectrum card panels, matching the app's teal theme.
+PANEL_BORDER = "#dce5ec"
+
 st.set_page_config(page_title="EELS Studio", page_icon="🔬", layout="wide")
-st.markdown("""<style>
-.block-container {padding-top: 3.5rem; padding-bottom: 2rem;}
-h1 {letter-spacing: -0.045em;}
-[data-testid="stMetric"] {background: white; border: 1px solid #dce5ec;
-  border-radius: 12px; padding: 14px 18px;}
-[data-testid="stSidebar"] {border-right: 1px solid #dce5ec;}
+st.markdown(f"""<style>
+.block-container {{padding-top: 3.5rem; padding-bottom: 2rem;}}
+h1 {{letter-spacing: -0.045em;}}
+[data-testid="stMetric"] {{background: white; border: 1px solid {PANEL_BORDER};
+  border-radius: 12px; padding: 14px 18px;}}
+[data-testid="stSidebar"] {{border-right: 1px solid {PANEL_BORDER};}}
 /* Keep the interface fully visible while an input change reruns the app. */
-[data-testid="stElementContainer"], [data-testid="stExpanderDetails"] {
+[data-testid="stElementContainer"], [data-testid="stExpanderDetails"] {{
   opacity: 1 !important; transition: none !important;
-}
+}}
+
+/* Detector / Spectrum card panels */
+.st-key-detector_panel, .st-key-spectrum_panel {{
+  background: white; border: 1px solid {PANEL_BORDER}; border-radius: 14px;
+  padding: 18px 20px; box-shadow: 0 2px 8px rgba(20,40,80,0.04);
+}}
+.eels-panel-title {{font-size: 19px; font-weight: 600; color: #172b3a; margin: 0 0 8px 0; text-align: center;}}
+
+/* Compact Plotly modebar */
+.modebar-container {{background: white !important; border: 1px solid {PANEL_BORDER};
+  border-radius: 9px; padding: 2px;}}
 </style>""", unsafe_allow_html=True)
 
 
@@ -88,7 +105,7 @@ def cached_notebook_npy(curves):
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
-def figure_downloads(curves, mode, x_limits, y_limits, normalize, dpi=300, corrected=False):
+def figure_downloads(curves, mode, x_limits, normalize, dpi=300, corrected=False):
     fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
     for curve in curves:
         style = curve["style"]
@@ -98,8 +115,6 @@ def figure_downloads(curves, mode, x_limits, y_limits, normalize, dpi=300, corre
     ax.set_xlabel("Energy loss (meV)")
     ax.set_ylabel(intensity_label(mode, normalize, corrected))
     ax.set_xlim(*x_limits)
-    if y_limits is not None:
-        ax.set_ylim(*y_limits)
     ax.grid(alpha=0.16)
     ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False)
     result = {}
@@ -201,8 +216,8 @@ if view == "2D scan map":
 with st.sidebar:
     st.divider()
     st.header("Extraction")
-    radius = st.number_input("Detector radius (pixels)", min_value=0.1, value=20.0, step=1.0)
-    st.caption("Center offsets from (px // 2, py // 2). px is the vertical image axis; py is horizontal.")
+    st.caption("Detector radius and center (px, py, radius) are now set directly below the "
+               "detector image in the Spectra tab.")
     min_px = min(i.shape[-2] for i in infos)
     min_py = min(i.shape[-1] for i in infos)
     for key, length in (("offset_px", min_px), ("offset_py", min_py)):
@@ -210,12 +225,12 @@ with st.sidebar:
             clamped = max(-(length // 2), min((length - 1) // 2, st.session_state[key]))
             if clamped != st.session_state[key]:
                 st.session_state[key] = clamped
-    col1, col2 = st.columns(2)
-    offset_px = col1.number_input("px offset", min_value=-(min_px // 2), max_value=(min_px - 1) // 2,
-                                  value=0, step=1, key="offset_px")
-    offset_py = col2.number_input("py offset", min_value=-(min_py // 2), max_value=(min_py - 1) // 2,
-                                  value=0, step=1, key="offset_py")
-    st.button("Reset detector center", on_click=reset_detector_center, use_container_width=True)
+    # These reflect the editable px/py/radius fields below the detector image: Streamlit
+    # already applies any pending edit to session_state before this script runs, so reading
+    # it here (ahead of those widgets' own call site) still sees this render's live value.
+    radius = st.session_state.get("detector_radius", 20.0)
+    offset_px = st.session_state.get("offset_px", 0)
+    offset_py = st.session_state.get("offset_py", 0)
     if "detector_click_error" in st.session_state:
         st.warning(st.session_state.pop("detector_click_error"))
     normalize = st.checkbox("Normalize full probe block", value=True,
@@ -237,7 +252,6 @@ with st.sidebar:
             format_func=lambda position: f"({position[0]}, {position[1]})",
             key="probe_positions",
             help="Choose individual probe positions. Each selected pair produces one spectrum per 6D file.")
-        st.caption(f"Probe x: 0–{n_x - 1} · probe y: 0–{n_y - 1}. Each entry is one (x, y) pair.")
         if not probe_positions:
             st.info("Select at least one probe position (x, y).")
             st.stop()
@@ -289,6 +303,13 @@ except (OSError, ValueError, IndexError, EOFError) as exc:
     st.error(f"Could not extract spectra: {exc}")
     st.stop()
 
+with st.sidebar:
+    with st.expander("Detector preview", expanded=True):
+        preview_index = st.selectbox("Preview spectrum", list(range(len(curves))),
+                                     format_func=lambda i: curves[i]["label"])
+        requested_energy = st.number_input("Preview energy (meV)", value=0.0, step=1.0)
+        pattern_log = st.checkbox("Log diffraction image", value=True)
+
 metrics = st.columns(4)
 metrics[0].metric("Selected scans", len(infos))
 metrics[1].metric("Spectra", len(curves))
@@ -307,16 +328,18 @@ if background_state.sync_inputs(input_fingerprints(curves, settings, revisions))
         st.info("Background results cleared because inputs or selected curves changed. Settings are retained for refitting.")
 if "bg_next_signal" in st.session_state:
     st.session_state["bg_signal"] = st.session_state.pop("bg_next_signal")
-spectrum_tab, background_tab, detector_tab, angle_tab, details_tab = st.tabs(
-    ["Spectra", "Background", "Detector preview", "Angle-resolved EELS", "Files & method"])
+spectrum_tab, background_tab, angle_tab, details_tab = st.tabs(
+    ["Spectra", "Background", "Angle-resolved EELS", "Files & method"])
 with spectrum_tab:
-    signal = st.radio("Spectrum signal", ["Input", "Corrected"],
-                      horizontal=True, key="bg_signal", disabled=not background_state.applied_results,
-                      help="Corrected becomes available after a valid batch is applied in Background.")
+    if background_state.applied_results:
+        signal = st.radio("Spectrum signal", ["Input", "Corrected"],
+                          horizontal=True, key="bg_signal", label_visibility="collapsed",
+                          help="Corrected becomes available after a valid batch is applied in Background.")
+        st.caption(f"{signal} · Applied: " + config_caption(background_state.applied_config))
+    else:
+        signal = "Input"
     background_state.signal = signal
     corrected = signal == "Corrected"
-    if background_state.applied_results:
-        st.caption(f"{signal} · Applied: " + config_caption(background_state.applied_config))
     controls = st.columns([1.3, 1, 1])
     mode_label = controls[0].selectbox("Intensity display", ["log10", "Linear"])
     mode = "log10" if mode_label == "log10" else "linear"
@@ -349,18 +372,11 @@ with spectrum_tab:
         saved_styles[editing] = dict(color=color, line_style=line_style, width=line_width)
         for curve, curve_key in zip(curves, curve_keys):
             curve["style"] = saved_styles[curve_key].copy()
-    y_limits = None
-    with st.expander("Vertical plot limits"):
-        if st.checkbox("Set intensity limits"):
-            left, right = st.columns(2)
-            y_min = left.number_input("Intensity min (display units)", value=-10.0)
-            y_max = right.number_input("Intensity max (display units)", value=0.0)
-            if y_min >= y_max:
-                st.error("Intensity min must be less than intensity max.")
-                st.stop()
-            y_limits = (y_min, y_max)
-    show_hover = st.toggle("Show hover details", value=True, key="show_hover_details",
+    toggle_cols = st.columns(2)
+    show_hover = toggle_cols[0].toggle("Show hover details", value=True, key="show_hover_details",
                            help="Show or hide the energy and intensity popup when hovering over the spectra.")
+    show_detector = toggle_cols[1].toggle("Show detector preview", value=True, key="show_detector_preview",
+                              help="Show the click-to-position detector diffraction image beside the spectrum plot.")
     st.session_state["spectrum_render_revision"] = st.session_state.get("spectrum_render_revision", 0) + 1
     shown_curves = [dict(c, intensity=background_state.applied_results[curve_identity_key(c)].corrected)
                     for c in curves] if corrected else curves
@@ -372,31 +388,114 @@ with spectrum_tab:
                                  line=dict(color=style["color"], width=style["width"],
                                            dash=LINE_STYLES[style["line_style"]][0]),
                                  hovertemplate="%{y:.6g}<extra>%{fullData.name}</extra>"))
-    fig.update_layout(height=500, margin=dict(l=20, r=20, t=25, b=20), template="plotly_white",
-                      paper_bgcolor="rgba(0,0,0,0)", hovermode="x unified" if show_hover else False,
+    fig.update_layout(height=440, margin=dict(l=20, r=20, t=15, b=20), template="plotly_white",
+                      paper_bgcolor="white", plot_bgcolor="white", hovermode="x unified" if show_hover else False,
                       legend=dict(orientation="h", y=-0.2, x=0), uirevision="spectrum",
                       meta=dict(eels_render_revision=st.session_state["spectrum_render_revision"]),
                       # Preserve exploration across recalculation; explicit limit edits still apply.
                       xaxis=dict(title="Energy loss (meV)", range=x_limits, zerolinecolor="#bdcbd4",
-                                 hoverformat=".4f", uirevision=json.dumps(x_limits)),
-                      yaxis=dict(title=intensity_label(mode, normalize, corrected), range=y_limits,
-                                 uirevision=json.dumps(y_limits)))
-    with st.container(key="spectrum_axis_target"):
-        st.plotly_chart(fig, key="spectrum_plot", use_container_width=True, config={"displaylogo": False,
-                        "toImageButtonOptions": {"format": "svg", "filename": "eels_spectra"}})
-    axis_scaling(key="spectrum_axis_scaling", height=0)
-    st.caption("Drag inside the plot to zoom · drag an axis to move it · Shift + drag an axis to scale it "
-               "(up/right zooms in; down/left zooms out) · double-click to reset · "
-               "click a legend entry to hide a curve. Downloads include every selected curve.")
-    if sigma_mev > 0:
-        st.caption(f"Gaussian broadening active: σ = {sigma_mev:g} meV (FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV).")
-    if corrected and mode == "log10":
-        st.caption("Nonpositive corrected samples are masked in log10 display (gaps are not connected). Signed linear residuals remain in data exports.")
-    if not corrected and mode == "log10" and any(np.any(c["intensity"] <= 0) for c in curves):
-        st.caption("Nonpositive values are clipped to the smallest positive float for log10 display, matching the notebook. Exported data keeps the original values.")
-    if not any(np.any((c["energy"] >= x_min) & (c["energy"] <= x_max)) for c in curves):
-        st.warning("The selected energy window contains no data bins.")
-    settings["plot"] = dict(mode=mode, x_limits=x_limits, y_limits=y_limits, show_hover_details=show_hover)
+                                 gridcolor="#EAF0F7", hoverformat=".4f", uirevision=json.dumps(x_limits)),
+                      yaxis=dict(title=intensity_label(mode, normalize, corrected), gridcolor="#EAF0F7",
+                                 uirevision="yaxis"))
+    workspace_row = st.container(key="workspace_row")
+    with workspace_row:
+        detector_col, plot_col = st.columns([1, 2], gap="medium") if show_detector else (None, st.container())
+    with plot_col:
+        with st.container(key="spectrum_panel"):
+            st.markdown('<p class="eels-panel-title">EELS Spectrum</p>', unsafe_allow_html=True)
+            with st.container(key="spectrum_axis_target"):
+                st.plotly_chart(fig, key="spectrum_plot", use_container_width=True, config={"displaylogo": False,
+                                "scrollZoom": True,
+                                "toImageButtonOptions": {"format": "svg", "filename": "eels_spectra"}})
+            axis_scaling(key="spectrum_axis_scaling", height=0)
+            st.caption("Click a legend entry to hide that curve · double-click a legend entry to "
+                       "isolate it (hide all others) · double-click again to restore all.")
+            if sigma_mev > 0:
+                st.caption(f"Gaussian broadening active: σ = {sigma_mev:g} meV (FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV).")
+            if corrected and mode == "log10":
+                st.caption("Nonpositive corrected samples are masked in log10 display (gaps are not connected). Signed linear residuals remain in data exports.")
+            if not any(np.any((c["energy"] >= x_min) & (c["energy"] <= x_max)) for c in curves):
+                st.warning("The selected energy window contains no data bins.")
+    if detector_col is not None:
+        with detector_col:
+            with st.container(key="detector_panel"):
+                st.markdown('<p class="eels-panel-title">Detector</p>', unsafe_allow_html=True)
+                curve = curves[preview_index]
+                info = scans[curve["path"]]
+                axis = curve["energy"]
+                _, raw_index = nearest_energy_index(axis, requested_energy,
+                                                    unshifted=ordering == "Unshifted FFT")
+                try:
+                    pattern = cached_diffraction_pattern(info, raw_index, curve["sample"], curve["probe_x"], curve["probe_y"])
+                    if not np.isfinite(pattern).all():
+                        raise ValueError("Diffraction plane contains NaN or infinite intensities")
+                    if pattern_log:
+                        # Avoids materializing a copy of every positive value just for its minimum.
+                        positive_min = np.min(pattern, where=pattern > 0, initial=np.inf)
+                        if not np.isfinite(positive_min):
+                            raise ValueError("This plane has no positive intensities. Turn off log diffraction image.")
+                        shown = np.log10(np.clip(pattern, positive_min, None))
+                    else:
+                        shown = pattern
+                    center = detector_center(info, offset_px, offset_py)
+                    st.session_state["detector_render_revision"] = st.session_state.get("detector_render_revision", 0) + 1
+                    image = go.Figure(go.Heatmap(z=shown, colorscale="Viridis", showscale=False,
+                                                 hovertemplate="py=%{x}<br>px=%{y}<br>%{z:.5g}<extra></extra>"))
+                    image.add_shape(type="circle", x0=center[1] - radius, x1=center[1] + radius,
+                                    y0=center[0] - radius, y1=center[0] + radius,
+                                    line=dict(color="#ff765e", width=2))
+                    # Draw the center as shapes so it cannot steal clicks from nearby pixels.
+                    image.add_shape(type="line", x0=center[1] - 2, x1=center[1] + 2,
+                                    y0=center[0], y1=center[0], line=dict(color="#ff765e", width=2))
+                    image.add_shape(type="line", x0=center[1], x1=center[1],
+                                    y0=center[0] - 2, y1=center[0] + 2, line=dict(color="#ff765e", width=2))
+                    # A fixed pixel size keeps the square detector image a predictable size in
+                    # this narrow column, matching the layout scan_map_view.py already uses.
+                    # No axis chrome to reserve room for, so the image can fill nearly the full box.
+                    margin = dict(l=10, r=10, t=10, b=10)
+                    content_side = 400
+                    # A shared revision keyed on the plane's shape preserves exploration across
+                    # recalculation but resets it if a differently-sized detector plane loads.
+                    axis_revision = f"detector:{pattern.shape}"
+                    image.update_layout(width=content_side + margin["l"] + margin["r"],
+                                        height=content_side + margin["t"] + margin["b"],
+                                        template="plotly_white", margin=margin, paper_bgcolor="white",
+                                        plot_bgcolor="white", uirevision="detector",
+                                        meta=dict(eels_render_revision=st.session_state["detector_render_revision"]),
+                                        xaxis=dict(range=[-0.5, pattern.shape[1] - 0.5], uirevision=axis_revision,
+                                                  visible=False),
+                                        yaxis=dict(range=[-0.5, pattern.shape[0] - 0.5], visible=False,
+                                                  scaleanchor="x", scaleratio=1, uirevision=axis_revision))
+                    with st.container(key="detector_click_target"):
+                        st.plotly_chart(image, key="detector_preview", use_container_width=False,
+                                        config={"displaylogo": False, "scrollZoom": True,
+                                                "toImageButtonOptions": {"format": "png", "filename": "eels_detector"}})
+                    axis_scaling(key="detector_axis_scaling", height=0, data=dict(
+                        selector=".st-key-detector_click_target .js-plotly-plot",
+                        viewport_key="eels.detector.viewport"))
+                    preview_id = json.dumps([info.path, info.mtime_ns, curve["sample"], curve["probe_x"], curve["probe_y"], raw_index])
+                    st.session_state["detector_preview_context"] = dict(preview_id=preview_id, shape=pattern.shape,
+                                                                       selected_shapes=[i.shape[-2:] for i in infos])
+                    # Renew the bridge after each Streamlit redraw, including manual edits.
+                    st.session_state["detector_click_revision"] = st.session_state.get("detector_click_revision", 0) + 1
+                    detector_click_bridge(key="detector_click", data={"preview_id": preview_id,
+                                          "revision": st.session_state["detector_click_revision"]},
+                                          on_clicked_change=move_detector_from_click, height=0)
+                    if any(c - radius < 0 or c + radius > n - 1 for c, n in zip(center, pattern.shape)):
+                        st.warning("The detector extends beyond this array. Only pixels inside the recorded plane are integrated.")
+                except (OSError, ValueError, IndexError, EOFError) as exc:
+                    st.warning(f"Preview unavailable: {exc}")
+                # Editable detector center/radius, always available even if the preview above failed.
+                edit_cols = st.columns(3)
+                edit_cols[0].number_input("px", min_value=-(min_px // 2), max_value=(min_px - 1) // 2,
+                                          value=offset_px, step=1, key="offset_px")
+                edit_cols[1].number_input("py", min_value=-(min_py // 2), max_value=(min_py - 1) // 2,
+                                          value=offset_py, step=1, key="offset_py")
+                edit_cols[2].number_input("radius", min_value=0.1, value=radius, step=1.0, key="detector_radius")
+                st.button("Reset detector center", on_click=reset_detector_center, use_container_width=True)
+    if detector_col is not None:
+        equal_height(key="workspace_equal_height", height=0)
+    settings["plot"] = dict(mode=mode, x_limits=x_limits, show_hover_details=show_hover)
     with st.expander("Export spectra & figures", expanded=True):
         st.caption("Data exports contain the full energy range and linear intensities. Figures use the display controls above; browser-only zoom and legend changes are not applied.")
         if sigma_mev > 0:
@@ -424,7 +523,7 @@ with spectrum_tab:
             exports[2].download_button("Notebook .npy", cached_notebook_npy(shown_curves), "eels_spectra_corrected.npy" if corrected else "eels_spectra.npy", "application/octet-stream", use_container_width=True)
         else:
             exports[2].caption("Use NPZ for unequal energy lengths.")
-        figures = figure_downloads(shown_curves, mode, x_limits, y_limits, normalize, png_dpi, corrected)
+        figures = figure_downloads(shown_curves, mode, x_limits, normalize, png_dpi, corrected)
         exports[3].download_button("SVG figure", figures["svg"], export_stem + ".svg", "image/svg+xml", use_container_width=True)
         exports[4].download_button("PNG figure", figures["png"], export_stem + ".png", "image/png", use_container_width=True)
 
@@ -437,64 +536,6 @@ with spectrum_tab:
 
 with background_tab:
     render_background(curves, background_state)
-
-with detector_tab:
-    preview_cols = st.columns([2, 1, 1])
-    preview_index = preview_cols[0].selectbox("Preview spectrum", list(range(len(curves))),
-                                              format_func=lambda i: curves[i]["label"])
-    requested_energy = preview_cols[1].number_input("Preview energy (meV)", value=0.0, step=1.0)
-    pattern_log = preview_cols[2].checkbox("Log diffraction image", value=True)
-    curve = curves[preview_index]
-    info = scans[curve["path"]]
-    axis = curve["energy"]
-    energy_index, raw_index = nearest_energy_index(axis, requested_energy,
-                                                    unshifted=ordering == "Unshifted FFT")
-    try:
-        pattern = cached_diffraction_pattern(info, raw_index, curve["sample"], curve["probe_x"], curve["probe_y"])
-        if not np.isfinite(pattern).all():
-            raise ValueError("Diffraction plane contains NaN or infinite intensities")
-        if pattern_log:
-            # Avoids materializing a copy of every positive value just for its minimum.
-            positive_min = np.min(pattern, where=pattern > 0, initial=np.inf)
-            if not np.isfinite(positive_min):
-                raise ValueError("This plane has no positive intensities. Turn off log diffraction image.")
-            shown = np.log10(np.clip(pattern, positive_min, None))
-        else:
-            shown = pattern
-        center = detector_center(info, offset_px, offset_py)
-        mask = circular_detector_mask(pattern.shape, center, radius)
-        image = go.Figure(go.Heatmap(z=shown, colorscale="Viridis",
-                                     colorbar=dict(title="log10(I)" if pattern_log else "Intensity"),
-                                     hovertemplate="py=%{x}<br>px=%{y}<br>%{z:.5g}<extra></extra>"))
-        image.add_shape(type="circle", x0=center[1] - radius, x1=center[1] + radius,
-                        y0=center[0] - radius, y1=center[0] + radius,
-                        line=dict(color="#ff765e", width=2))
-        # Draw the center as shapes so it cannot steal clicks from nearby pixels.
-        image.add_shape(type="line", x0=center[1] - 2, x1=center[1] + 2,
-                        y0=center[0], y1=center[0], line=dict(color="#ff765e", width=2))
-        image.add_shape(type="line", x0=center[1], x1=center[1],
-                        y0=center[0] - 2, y1=center[0] + 2, line=dict(color="#ff765e", width=2))
-        image.update_layout(height=570, template="plotly_white", margin=dict(l=20, r=20, t=20, b=20),
-                            paper_bgcolor="rgba(0,0,0,0)",
-                            xaxis=dict(title="py (pixel)", range=[-0.5, pattern.shape[1] - 0.5], constrain="domain"),
-                            yaxis=dict(title="px (pixel)", range=[-0.5, pattern.shape[0] - 0.5], scaleanchor="x", scaleratio=1))
-        st.caption("Click the diffraction image to position the detector. Drag to zoom; double-click to reset zoom. The same center offsets apply to all selected scans.")
-        with st.container(key="detector_click_target"):
-            st.plotly_chart(image, key="detector_preview", use_container_width=True, config={"displaylogo": False})
-        preview_id = json.dumps([info.path, info.mtime_ns, curve["sample"], curve["probe_x"], curve["probe_y"], raw_index])
-        st.session_state["detector_preview_context"] = dict(preview_id=preview_id, shape=pattern.shape,
-                                                           selected_shapes=[i.shape[-2:] for i in infos])
-        # Renew the bridge after each Streamlit redraw, including manual edits.
-        st.session_state["detector_click_revision"] = st.session_state.get("detector_click_revision", 0) + 1
-        detector_click_bridge(key="detector_click", data={"preview_id": preview_id,
-                              "revision": st.session_state["detector_click_revision"]},
-                              on_clicked_change=move_detector_from_click, height=0)
-        st.caption(f"Nearest energy bin: {axis[energy_index]:.6g} meV · array index {raw_index} · "
-                   f"center (px, py) = {center} · {int(mask.sum()):,} detector pixels. Image shows raw plane intensities.")
-        if any(c - radius < 0 or c + radius > n - 1 for c, n in zip(center, pattern.shape)):
-            st.warning("The detector extends beyond this array. Only pixels inside the recorded plane are integrated.")
-    except (OSError, ValueError, IndexError, EOFError) as exc:
-        st.warning(f"Preview unavailable: {exc}")
 
 with angle_tab:
     render_angle_resolved(curves, scans, settings)

@@ -6,8 +6,9 @@ import json
 
 import numpy as np
 import pybaselines
+import scipy
 
-from background_core import PROCESSING_ORDER
+from background_core import ANALYTIC_MODELS, BACKGROUND_MODELS, PROCESSING_ORDER
 from eels_core import curve_identity_key
 
 SCHEMA_VERSION = 1
@@ -15,14 +16,22 @@ SCHEMA_VERSION = 1
 
 def background_metadata(curves, settings, state, signal):
     config = state.applied_config
-    parameters = (dict(lam=10.0 ** config.log10_lambda, diff_order=2, tol=config.tolerance,
-                       max_iter=config.max_iterations) if config.method == "arPLS" else
-                  dict(max_half_window_mev=config.half_window_mev, decreasing=True,
-                       filter_order=2, smooth_half_window=None, transform="linear"))
+    if config.method in ANALYTIC_MODELS:
+        parameters = dict(model=config.method, param_names=BACKGROUND_MODELS[config.method].params,
+                          start=config.model_start, lower_bounds=config.model_lower,
+                          upper_bounds=config.model_upper, segments_meV=config.segments,
+                          energy_factor=config.energy_factor)
+        package, package_version = "scipy.optimize.curve_fit", scipy.__version__
+    else:
+        parameters = (dict(lam=10.0 ** config.log10_lambda, diff_order=2, tol=config.tolerance,
+                           max_iter=config.max_iterations) if config.method == "arPLS" else
+                      dict(max_half_window_mev=config.half_window_mev, decreasing=True,
+                           filter_order=2, smooth_half_window=None, transform="linear"))
+        package, package_version = "pybaselines", pybaselines.__version__
     return dict(schema_version=SCHEMA_VERSION, exported_signal=signal,
         settings=dict(settings, processing_order=PROCESSING_ORDER),
-        background=dict(configuration=asdict(config), algorithm_parameters=parameters, package="pybaselines",
-                        package_version=pybaselines.__version__,
+        background=dict(configuration=asdict(config), algorithm_parameters=parameters, package=package,
+                        package_version=package_version,
                         fitted_input_stage="linear, energy-unweighted intensity after optional Gaussian broadening"),
         curves=[dict(**{k: c[k] for k in ("label", "path", "sample", "probe_x", "probe_y", "style") if k in c},
                      source_revision=state.source_revisions.get(c["path"]),
