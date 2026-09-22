@@ -28,6 +28,7 @@ from equal_height import register_equal_height
 from background_core import BackgroundState, config_caption, corrected_display, input_fingerprints
 from background_exports import background_csv, background_npz
 from background_view import render_background
+from folder_browser import render_folder_input
 
 ROOT = Path(__file__).resolve().parent
 detector_click_bridge = register_detector_click_bridge()
@@ -104,12 +105,20 @@ def cached_notebook_npy(curves):
     return buffer.getvalue()
 
 
+def spectrum_display_intensity(curve, mode, corrected=False):
+    """Apply display scaling without changing the stored or exported spectrum."""
+    if mode == "energy_squared":
+        return curve["intensity"] * np.square(curve["energy"])
+    transform = corrected_display if corrected else display_intensity
+    return transform(curve["intensity"], mode)
+
+
 @st.cache_data(show_spinner=False, max_entries=8)
 def figure_downloads(curves, mode, x_limits, normalize, dpi=300, corrected=False):
     fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
     for curve in curves:
         style = curve["style"]
-        ax.plot(curve["energy"], (corrected_display if corrected else display_intensity)(curve["intensity"], mode),
+        ax.plot(curve["energy"], spectrum_display_intensity(curve, mode, corrected),
                 label=curve["label"], color=style["color"], linewidth=style["width"],
                 linestyle=LINE_STYLES[style["line_style"]][1])
     ax.set_xlabel("Energy loss (meV)")
@@ -130,6 +139,8 @@ def intensity_label(mode, normalize, corrected=False):
     base = "Normalized detector intensity" if normalize else "Detector intensity"
     if corrected:
         base = "Background-subtracted " + base.lower()
+    if mode == "energy_squared":
+        return f"{base} × E² (meV²)"
     return f"log10({base.lower()})" if mode == "log10" else base
 
 
@@ -165,7 +176,7 @@ view = st.radio("Visualization", ["Spectra & detector", "2D scan map"], horizont
 
 with st.sidebar:
     st.header("Your scans")
-    folder = st.text_input("Data folder", value=str(ROOT), help="Local folder on the computer running this app.")
+    folder = render_folder_input(ROOT)
     st.button("Refresh files", use_container_width=True, on_click=_cached_inspect.clear,
              help="Force every file to be re-inspected, in case one changed without its size or modified time changing.")
     try:
@@ -177,7 +188,7 @@ with st.sidebar:
         st.error(str(exc))
         st.stop()
     if not available:
-        st.info("No .npy files in this folder. Enter a folder containing your scans.")
+        st.info("No .npy files in this folder. Browse to or enter a folder containing your scans.")
         st.stop()
     # Inspection reads only headers; arrays with unsupported dimensions are excluded.
     # Cached per (path, mtime, size), so an unchanged file's header is parsed
@@ -341,8 +352,11 @@ with spectrum_tab:
     background_state.signal = signal
     corrected = signal == "Corrected"
     controls = st.columns([1.3, 1, 1])
-    mode_label = controls[0].selectbox("Intensity display", ["log10", "Linear"])
-    mode = "log10" if mode_label == "log10" else "linear"
+    display_modes = {"log10": "log10", "Linear": "linear", "Intensity × E²": "energy_squared"}
+    mode_label = controls[0].selectbox(
+        "Intensity display", list(display_modes),
+        help="Intensity × E² multiplies each intensity by its energy loss squared (in meV²). Applies to the plot and figure downloads.")
+    mode = display_modes[mode_label]
     x_min = controls[1].number_input("Energy min (meV)", value=-150.0, step=10.0)
     x_max = controls[2].number_input("Energy max (meV)", value=150.0, step=10.0)
     if x_min >= x_max:
@@ -383,7 +397,7 @@ with spectrum_tab:
     fig = go.Figure()
     for curve in shown_curves:
         style = curve["style"]
-        fig.add_trace(go.Scatter(x=curve["energy"], y=(corrected_display if corrected else display_intensity)(curve["intensity"], mode),
+        fig.add_trace(go.Scatter(x=curve["energy"], y=spectrum_display_intensity(curve, mode, corrected),
                                  name=curve["label"], mode="lines", connectgaps=False,
                                  line=dict(color=style["color"], width=style["width"],
                                            dash=LINE_STYLES[style["line_style"]][0]),
@@ -396,7 +410,7 @@ with spectrum_tab:
                       xaxis=dict(title="Energy loss (meV)", range=x_limits, zerolinecolor="#bdcbd4",
                                  gridcolor="#EAF0F7", hoverformat=".4f", uirevision=json.dumps(x_limits)),
                       yaxis=dict(title=intensity_label(mode, normalize, corrected), gridcolor="#EAF0F7",
-                                 uirevision="yaxis"))
+                                 uirevision=f"yaxis:{mode}"))
     workspace_row = st.container(key="workspace_row")
     with workspace_row:
         detector_col, plot_col = st.columns([1, 2], gap="medium") if show_detector else (None, st.container())
@@ -412,6 +426,8 @@ with spectrum_tab:
                        "isolate it (hide all others) · double-click again to restore all.")
             if sigma_mev > 0:
                 st.caption(f"Gaussian broadening active: σ = {sigma_mev:g} meV (FWHM = {sigma_mev * np.sqrt(8 * np.log(2)):.3f} meV).")
+            if mode == "energy_squared":
+                st.caption("Energy-squared display: I(E) × E², with E in meV. Data exports retain unscaled linear intensities.")
             if corrected and mode == "log10":
                 st.caption("Nonpositive corrected samples are masked in log10 display (gaps are not connected). Signed linear residuals remain in data exports.")
             if not any(np.any((c["energy"] >= x_min) & (c["energy"] <= x_max)) for c in curves):
