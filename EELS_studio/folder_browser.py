@@ -5,6 +5,7 @@ import os
 import streamlit as st
 
 from native_folder_picker import choose_directory
+from scan_sources import resolve_data_directory
 
 
 def _navigate(path):
@@ -13,9 +14,7 @@ def _navigate(path):
 
 def _initial_folder():
     try:
-        path = Path(st.session_state["data_folder"]).expanduser().resolve()
-        if not path.is_dir():
-            path = Path.home()
+        path = resolve_data_directory(st.session_state["data_folder"])
     except (OSError, RuntimeError, ValueError):
         path = Path.home()
     return path
@@ -60,7 +59,7 @@ def render_folder_input(default):
     """Open a system folder chooser, with in-app navigation as a fallback."""
     st.session_state.setdefault("data_folder", str(default))
     folder = st.text_input("Data folder", key="data_folder",
-                           help="Local folder on the computer running this app.")
+                           help="Local folder containing NumPy/Zarr scans, or a Zarr array directory.")
     st.button("Browse folders", on_click=_open_native_browser, width="stretch",
               help="Open the folder-selection window on the computer running this app.")
     error = st.session_state.pop("folder_browser_error", None)

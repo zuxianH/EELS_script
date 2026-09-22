@@ -173,7 +173,7 @@ def render_angle_resolved(curves, scans, settings):
             st.plotly_chart(preview, key="angle_diffraction", use_container_width=True,
                             config={"displaylogo": False, "modeBarButtonsToAdd": ["drawrect"],
                                     "edits": {"shapePosition": True}})
-        preview_id = json.dumps([selected, info.mtime_ns, shape, raw_index])
+        preview_id = json.dumps([selected, info.mtime_ns, info.revision, shape, raw_index])
         st.session_state["angle_rectangle_context"] = dict(preview_id=preview_id, shape=shape,
                                                            bound_keys=bound_keys)
         bridge = components.component("eels_angle_rectangle", js=_RECTANGLE_SELECT_JS)
