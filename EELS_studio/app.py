@@ -25,18 +25,20 @@ from scan_map_view import render_scan_map
 from detector_click import register_detector_click_bridge
 from angle_resolved import render_angle_resolved
 from axis_scaling import register_axis_scaling
-from equal_height import register_equal_height
+from panel_layout import (ADJUSTABLE_PANELS_ENABLED, register_panel_layout,
+                          layout_settings, update_panel_layout, reset_panel_layout)
 from background_core import BackgroundState, config_caption, corrected_display, input_fingerprints
 from background_exports import background_csv, background_npz
 from background_view import render_background
 from folder_browser import render_folder_input
+from file_order import render_file_order
 from scan_sources import discover_scans, resolve_data_directory, scan_revision
 from workspace_config import render_config_controls, render_config_download, restore_background
 
 ROOT = Path(__file__).resolve().parent
 detector_click_bridge = register_detector_click_bridge()
 axis_scaling = register_axis_scaling()
-equal_height = register_equal_height()
+panel_layout = register_panel_layout() if ADJUSTABLE_PANELS_ENABLED else None
 COLORS = ["#137c78", "#dd7848", "#626cc6", "#c24c79", "#7a9845", "#428fbd"]
 LINE_STYLES = {
     "Solid": ("solid", "-"),
@@ -226,6 +228,7 @@ with st.sidebar:
         st.info("Select at least one scan to get started.")
         render_config_download(config_slot)
         st.stop()
+    render_file_order(files_key, selected)
     infos = [scans[p] for p in selected]
     for info in infos:
         if info.chunks is not None:
@@ -358,6 +361,8 @@ except (OSError, ValueError, IndexError, EOFError) as exc:
     render_config_download(config_slot)
     st.stop()
 
+st.session_state["_comparison_curve_paths"] = [c["path"] for c in curves]
+
 with st.sidebar:
     with st.expander("Detector preview", expanded=True):
         if st.session_state.get("preview_index", 0) >= len(curves):
@@ -439,6 +444,13 @@ with spectrum_tab:
                            help="Show or hide the energy and intensity popup when hovering over the spectra.")
     show_detector = toggle_cols[1].toggle("Show detector preview", value=True, key="show_detector_preview",
                               help="Show the click-to-position detector diffraction image beside the spectrum plot.")
+    panel_settings = layout_settings()
+    if ADJUSTABLE_PANELS_ENABLED:
+        layout_help, layout_reset = st.columns([4, 1.4])
+        layout_help.caption("Drag the divider to resize panel widths, the handles below the plots to change height, "
+                            "or a panel title onto the other panel to swap positions." if show_detector else
+                            "Drag the handle below the spectrum to change its height.")
+        layout_reset.button("Reset panel layout", on_click=reset_panel_layout, width="stretch")
     st.session_state["spectrum_render_revision"] = st.session_state.get("spectrum_render_revision", 0) + 1
     shown_curves = [dict(c, intensity=background_state.applied_results[curve_identity_key(c)].corrected)
                     for c in curves] if corrected else curves
@@ -450,7 +462,7 @@ with spectrum_tab:
                                  line=dict(color=style["color"], width=style["width"],
                                            dash=LINE_STYLES[style["line_style"]][0]),
                                  hovertemplate="%{y:.6g}<extra>%{fullData.name}</extra>"))
-    fig.update_layout(height=440, margin=dict(l=20, r=20, t=15, b=20), template="plotly_white", dragmode="pan",
+    fig.update_layout(height=panel_settings["panel_spectrum_height"], margin=dict(l=20, r=20, t=15, b=20), template="plotly_white", dragmode="pan",
                       paper_bgcolor="white", plot_bgcolor="white", hovermode="x unified" if show_hover else False,
                       legend=dict(orientation="h", y=-0.2, x=0), uirevision="spectrum",
                       meta=dict(eels_render_revision=st.session_state["spectrum_render_revision"]),
@@ -461,7 +473,14 @@ with spectrum_tab:
                                  uirevision=f"yaxis:{mode}:{st.session_state.get('workspace_revision', 0)}"))
     workspace_row = st.container(key="workspace_row")
     with workspace_row:
-        detector_col, plot_col = st.columns([1, 2], gap="medium") if show_detector else (None, st.container())
+        if show_detector:
+            share = panel_settings["panel_detector_width"]
+            if panel_settings["panel_detector_first"]:
+                detector_col, plot_col = st.columns([share, 1 - share], gap="medium")
+            else:
+                plot_col, detector_col = st.columns([1 - share, share], gap="medium")
+        else:
+            detector_col, plot_col = None, st.container()
     with plot_col:
         with st.container(key="spectrum_panel"):
             st.markdown('<p class="eels-panel-title">EELS Spectrum</p>', unsafe_allow_html=True)
@@ -513,25 +532,25 @@ with spectrum_tab:
                                     y0=center[0], y1=center[0], line=dict(color="#ff765e", width=2))
                     image.add_shape(type="line", x0=center[1], x1=center[1],
                                     y0=center[0] - 2, y1=center[0] + 2, line=dict(color="#ff765e", width=2))
-                    # A fixed pixel size keeps the square detector image a predictable size in
-                    # this narrow column, matching the layout scan_map_view.py already uses.
-                    # No axis chrome to reserve room for, so the image can fill nearly the full box.
+                    # Keep pixels square by shrinking the plotting domain, not by
+                    # repeatedly expanding coordinate ranges when the panel resizes.
                     margin = dict(l=10, r=10, t=10, b=10)
-                    content_side = 400
                     # A shared revision keyed on the plane's shape preserves exploration across
                     # recalculation but resets it if a differently-sized detector plane loads.
-                    axis_revision = f"detector:{pattern.shape}"
-                    image.update_layout(width=content_side + margin["l"] + margin["r"],
-                                        height=content_side + margin["t"] + margin["b"],
+                    # New revision discards zoom ranges inflated by the old resize behavior.
+                    axis_revision = f"detector-domain:{pattern.shape}:{st.session_state.get('workspace_revision', 0)}"
+                    image.update_layout(autosize=True,
+                                        height=panel_settings["panel_detector_height"],
                                         template="plotly_white", margin=margin, paper_bgcolor="white",
                                         plot_bgcolor="white", uirevision="detector", dragmode="pan",
                                         meta=dict(eels_render_revision=st.session_state["detector_render_revision"]),
                                         xaxis=dict(range=[-0.5, pattern.shape[1] - 0.5], uirevision=axis_revision,
-                                                  visible=False),
+                                                  visible=False, constrain="domain"),
                                         yaxis=dict(range=[-0.5, pattern.shape[0] - 0.5], visible=False,
-                                                  scaleanchor="x", scaleratio=1, uirevision=axis_revision))
+                                                  constrain="domain", scaleanchor="x", scaleratio=1,
+                                                  uirevision=axis_revision))
                     with st.container(key="detector_click_target"):
-                        st.plotly_chart(image, key="detector_preview", use_container_width=False,
+                        st.plotly_chart(image, key="detector_preview", use_container_width=True,
                                         config={"displaylogo": False, "scrollZoom": True,
                                                 "toImageButtonOptions": {"format": "png", "filename": "eels_detector"}})
                     axis_scaling(key="detector_axis_scaling", height=0, data=dict(
@@ -557,8 +576,10 @@ with spectrum_tab:
                                           value=offset_py, step=1, key="offset_py")
                 edit_cols[2].number_input("radius", min_value=0.1, value=radius, step=1.0, key="detector_radius")
                 st.button("Reset detector center", on_click=reset_detector_center, use_container_width=True)
-    if detector_col is not None:
-        equal_height(key="workspace_equal_height", height=0)
+    if panel_layout is not None:
+        panel_layout(key="panel_layout_bridge", height=0,
+                     data=dict(panel_settings, render_revision=st.session_state["spectrum_render_revision"]),
+                     on_layout_change=update_panel_layout)
     settings["plot"] = dict(mode=mode, x_limits=x_limits, show_hover_details=show_hover)
     with st.expander("Export spectra & figures", expanded=True):
         st.caption("Data exports contain the full energy range and linear intensities. Figures use the display controls above; browser-only zoom and legend changes are not applied.")

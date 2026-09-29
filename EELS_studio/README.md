@@ -21,6 +21,22 @@ Open http://localhost:8501 (binds to localhost only). Once `.venv` exists, `./ru
 - **2D scan maps** — under **Visualization → 2D scan map**, request one or more energies to see detector-summed intensity across probe positions.
 - **Angle-resolved EELS** — draw a rectangle on the diffraction image to sum a strip across one detector direction, producing an energy-vs-pixel map.
 
+## Order compared files
+
+Below **Files to compare**, drag the filenames in **File order** to arrange them.
+You can also focus a filename and press **Alt + ↑ / ↓**. The selected files, plot curves, legend, and
+exports follow this order. Line styles stay with their files, and **Save config**
+retains the order for your next session.
+
+## Spectrum workspace layout
+
+**Spectra** uses fixed panel sizes and order: **Detector** on the left and
+**EELS Spectrum** on the right. Plot pan and zoom still work inside each chart.
+Adjustable panels are temporarily disabled to avoid lag. Their implementation
+is retained in `panel_layout.py` and `panel_layout.js`, controlled by
+`ADJUSTABLE_PANELS_ENABLED = False`. Saved custom panel sizes and order are
+retained for compatibility but ignored while this feature is disabled.
+
 ## Save and resume a workspace
 
 In the sidebar, open **Workspace config** and click **Save config** to download
@@ -32,7 +48,7 @@ current workspace settings.
 Configs include the data folder, selected scans and probe positions, curve labels,
 line colors/styles/widths, detector geometry, normalization, energy calibration,
 broadening, intensity display and energy limits, previews, map settings and
-rectangles, and export resolution. Background draft parameters are retained;
+rectangles and export resolution. Background draft parameters are retained;
 previously applied background fits are recalculated from their saved parameters
 when the spectra are loaded. Settings for both visualization modes are retained
 when switching between spectra and 2D maps.

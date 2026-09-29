@@ -170,6 +170,9 @@ def test_zoom_survives_detector_changes_and_explicit_limits_still_apply(spectrum
             return Number.isFinite(value) && value !== oldValue;
         }""", arg=first_y)
 
+    # Pan is the default; choose the toolbar's Zoom tool before drawing a box.
+    chart.hover()
+    chart.locator('.modebar-btn[data-title="Zoom"]').click()
     # Use the real box-zoom gesture, not a programmatic range update.
     plot = chart.locator(".nsewdrag")
     plot.scroll_into_view_if_needed()

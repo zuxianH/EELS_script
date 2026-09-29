@@ -26,10 +26,12 @@ CHOICES = {
     **{k: [150, 300, 600, 1200] for k in ("png_dpi_spectrum", "png_dpi_angle", "png_dpi_scan_map")},
 }
 BOOLS = set("normalize_probe broaden_spectrum pattern_log show_hover_details show_detector_preview "
-            "angle_preview_log angle_manual_color map_shared_scale map_manual_scale map_broaden".split())
+            "angle_preview_log angle_manual_color map_shared_scale map_manual_scale map_broaden panel_detector_first".split())
 STRINGS = set("data_folder style_editor angle_source map_scan map_energies bg_preview_curve".split())
 # Numeric fields: (integer, minimum, maximum). None means unbounded.
 NUMBERS = {
+    "panel_detector_width": (False, .2, .7),
+    "panel_spectrum_height": (True, 260, 1000), "panel_detector_height": (True, 260, 1000),
     "detector_radius": (False, .1, None), "offset_px": (True, None, None), "offset_py": (True, None, None),
     "spectrum_timestep": (False, 1e-6, None), "spectrum_stride": (True, 1, None),
     "spectrum_sigma": (False, 0, None), "preview_index": (True, 0, None),

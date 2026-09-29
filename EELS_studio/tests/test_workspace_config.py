@@ -97,6 +97,34 @@ class WorkspaceAppTests(unittest.TestCase):
         self.assertFalse(app.exception, str(app.exception))
         self.assertFalse(app.error, str(app.error))
 
+    def test_file_order_preserves_styles_preview_and_saved_config(self):
+        from file_order import apply_file_order
+
+        app = self.open_scans()
+        a, b = str(self.folder / 'a.npy'), str(self.folder / 'b.npy')
+        app.multiselect(key='probe_positions').set_value([(0, 0), (1, 1)]).run()
+        app.selectbox(key='preview_index').set_value(2).run()
+        widget(app, 'color_picker', 'Line color').set_value('#abcdef').run()
+        styles = dict(app.session_state['curve_styles'])
+        state = dict(app.session_state)
+        with patch('file_order.st.session_state', state):
+            apply_file_order(f'files:{self.folder}', [b, a])
+        app.session_state[f'files:{self.folder}'] = state[f'files:{self.folder}']
+        app.session_state['preview_index'] = state['preview_index']
+        app.run()
+        self.assertHealthy(app)
+        self.assertEqual(widget(app, 'multiselect', 'Files to compare').value, [b, a])
+        self.assertEqual(app.selectbox(key='preview_index').value, 1)
+        self.assertEqual(app.session_state['curve_styles'], styles)
+        charts = [json.loads(chart.proto.spec) for chart in app.get('plotly_chart')]
+        spectrum = next(chart for chart in charts if chart['layout'].get('uirevision') == 'spectrum')
+        self.assertEqual([c['name'] for c in spectrum['data']], ['b · x=0, y=0', 'b · x=1, y=1', 'a'])
+        restored = fresh_app(config.encode_config(dict(app.session_state)))
+        self.assertHealthy(restored)
+        self.assertEqual(widget(restored, 'multiselect', 'Files to compare').value, [b, a])
+        self.assertEqual(restored.selectbox(key='preview_index').value, 1)
+        self.assertEqual(restored.session_state['curve_styles'], styles)
+
     def test_restore_selected_scan_parameters_labels_and_line_style(self):
         app = self.open_scans()
         widget(app, 'multiselect', 'Files to compare').set_value([str(self.folder / 'b.npy')]).run()
