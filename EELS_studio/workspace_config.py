@@ -19,7 +19,7 @@ CHOICES = {
     "intensity_display": ["log10", "Linear", "Intensity × E²"],
     "angle_direction": ["Horizontal (py)", "Vertical (px)"],
     "angle_color_scale": ["log10", "Linear"],
-    "bg_display": ["Linear", "log10"],
+    "bg_display": ["Linear", "Intensity × E²"],
     "bg_method": ["arPLS", "SNIP", *BACKGROUND_MODELS],
     "bg_domain": ["Selected energy interval", "Full recorded spectrum"],
     "bg_preview_view": ["fit", "full"],
@@ -143,9 +143,13 @@ def _background(value):
         raise ValueError("Invalid applied background settings.")
     raw = value["config"]
     defaults = asdict(BackgroundConfig())
-    if set(raw) != set(defaults) or raw["method"] not in CHOICES["bg_method"] or raw["domain"] not in ("selected", "full"):
+    required = set(defaults) - {"intensity_mode"}  # Older workspace files predate weighting.
+    if (set(raw) not in (required, set(defaults)) or raw["method"] not in CHOICES["bg_method"]
+            or raw["domain"] not in ("selected", "full")):
         raise ValueError("Invalid background configuration.")
-    result = dict(raw)
+    result = dict(defaults, **raw)
+    if result["intensity_mode"] not in ("linear", "energy_squared"):
+        raise ValueError("Invalid background intensity mode.")
     for key in ("energy_min", "energy_max", "log10_lambda", "tolerance", "half_window_mev", "energy_factor", "max_iterations"):
         if raw[key] is None and key in ("energy_min", "energy_max"):
             continue
@@ -181,7 +185,10 @@ def decode_config(data):
     raw = document.get("settings")
     if not isinstance(raw, dict) or any(not is_setting(k) for k in raw):
         raise ValueError("The config contains unknown settings.")
-    return {"settings": {k: _setting(k, v) for k, v in raw.items()},
+    settings = dict(raw)
+    if settings.get("bg_display") == "log10":  # Migrate the removed preview-only option.
+        settings["bg_display"] = "Linear"
+    return {"settings": {k: _setting(k, v) for k, v in settings.items()},
             "background": _background(document.get("background"))}
 
 

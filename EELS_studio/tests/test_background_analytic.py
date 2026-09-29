@@ -188,9 +188,8 @@ def test_config_caption_describes_segments():
 def test_preview_figure_shades_each_segment():
     c, _ = curve("power0")
     result = fit_background(c["energy"], c["intensity"], analytic_config("power0"))
-    # log10 mode: no zero-reference hline, so every shape is one of our per-segment vrects.
-    figure = preview_figure(c, result, mode="log10")
-    assert len(figure.layout.shapes) == 4  # two segments x two subplot rows
+    figure = preview_figure(c, result)
+    assert sum(shape.type == "rect" for shape in figure.layout.shapes) == 2
 
 
 def test_state_apply_and_exports_for_analytic_model():

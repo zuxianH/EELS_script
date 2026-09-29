@@ -1,3 +1,4 @@
+import base64
 import csv
 from dataclasses import replace
 import io
@@ -80,6 +81,7 @@ def test_almost_constant_is_not_shortcut():
 @pytest.mark.parametrize("kwargs", [dict(method="unknown"), dict(domain="masked"),
     dict(log10_lambda=np.nan), dict(log10_lambda=11), dict(tolerance=0), dict(tolerance=np.inf),
     dict(max_iterations=0), dict(max_iterations=1.5), dict(half_window_mev=0),
+    dict(intensity_mode="log10"),
     dict(domain="selected", energy_min=np.nan, energy_max=100),
     dict(domain="selected", energy_min=100, energy_max=50),
     dict(domain="selected", energy_min=-51, energy_max=100),
@@ -222,17 +224,48 @@ def test_exports_roundtrip_unequal_lengths(signal):
     assert json.loads(rows[0]["metadata_json"])["exported_signal"] == signal
 
 
-def test_preview_plot_linked_axes_and_masking():
+def test_energy_squared_background_fits_and_exports_weighted_input():
+    c = curve()
+    x, y = c["energy"], c["intensity"]
+    config = BackgroundConfig(method="SNIP", domain="full", half_window_mev=10,
+                              intensity_mode="energy_squared")
+    weighted = y * np.square(x)
+    result = fit_background(x, y, config)
+    direct = fit_background(x, weighted, replace(config, intensity_mode="linear"))
+    np.testing.assert_allclose(result.input, weighted)
+    np.testing.assert_allclose(result.baseline, direct.baseline, equal_nan=True)
+    np.testing.assert_allclose(result.corrected, direct.corrected, equal_nan=True)
+    np.testing.assert_array_equal(y, c["intensity"])
+    state = state_for([c])
+    assert not state.apply([c], config)
+    with np.load(io.BytesIO(background_npz([c], {}, state, "Corrected")), allow_pickle=False) as data:
+        np.testing.assert_allclose(data["curve_000_input"], weighted)
+        np.testing.assert_allclose(data["curve_000_corrected"], result.corrected, equal_nan=True)
+        metadata = json.loads(str(data["metadata_json"]))
+        assert metadata["background"]["configuration"]["intensity_mode"] == "energy_squared"
+        assert "energy" in metadata["background"]["fitted_input_stage"].lower()
+    fig = preview_figure(c, result, mode="energy_squared")
+    np.testing.assert_allclose(fig.data[0].y, weighted)
+    np.testing.assert_allclose(fig.data[1].y, result.baseline, equal_nan=True)
+    np.testing.assert_allclose(fig.data[2].y, result.corrected, equal_nan=True)
+    assert "E²" in fig.layout.yaxis.title.text
+    with pytest.raises(ValueError, match="finite"):
+        fit_background(np.array([1e200 + i * 1e190 for i in range(20)]),
+                       np.ones(20), replace(config, domain="full"))
+
+
+def test_preview_plot_shared_axes_and_masking():
     c = curve()
     r = fit_background(c["energy"], c["intensity"], BackgroundConfig(energy_min=5, energy_max=180))
     fig = preview_figure(c, r)
-    assert fig.layout.xaxis.matches == "x2"
+    assert "xaxis2" not in fig.layout and "yaxis2" not in fig.layout
+    assert {(t.xaxis or "x", t.yaxis or "y") for t in fig.data} == {("x", "y")}
     assert fig.data[1].line.dash == "dash"
     assert not fig.data[2].connectgaps
     assert fig.data[2].line.color == c["style"]["color"]
     assert any(shape.y0 == shape.y1 == 0 for shape in fig.layout.shapes)
     intervals = [shape for shape in fig.layout.shapes if shape.type == "rect"]
-    assert {shape.xref for shape in intervals} == {"x", "x2"}
+    assert {shape.xref for shape in intervals} == {"x"}
     assert all((shape.x0, shape.x1) == r.diagnostics.actual_bounds for shape in intervals)
 
 
@@ -351,32 +384,7 @@ def test_app_partial_exports_lambda_sync_and_no_scan_reads(tmp_path):
         assert any(b.label == "Notebook .npy" for b in app.get("download_button"))
 
 
-def test_preview_log_masks_nonpositive_values_and_keeps_signed_data():
-    c = curve()
-    r = fit_background(c['energy'], c['intensity'], BackgroundConfig(energy_min=5, energy_max=180))
-    baseline = r.baseline.copy()
-    baseline[np.flatnonzero(r.validity_mask)[0]] = -0.5
-    r = replace(r, baseline=baseline)
-    c['intensity'][0] = 0
-    c['intensity'][1] = -1
-    before = [a.copy() for a in (c['intensity'], r.baseline, r.corrected)]
-    linear = preview_figure(c, r)
-    logged = preview_figure(c, r, mode='log10')
-    for trace, values in zip(logged.data, before):
-        np.testing.assert_array_equal(trace.y, corrected_display(values, 'log10'))
-        assert trace.connectgaps is False
-    assert (r.corrected[r.validity_mask] < 0).any()
-    assert not any(s.type == 'line' and s.y0 == s.y1 == 0 for s in logged.layout.shapes)
-    assert any(s.type == 'line' and s.y0 == s.y1 == 0 for s in linear.layout.shapes)
-    assert logged.layout.yaxis2.title.text == 'log10(positive residual)'
-    assert logged.layout.xaxis.matches == 'x2'
-    assert logged.layout.xaxis.uirevision == linear.layout.xaxis.uirevision
-    assert logged.layout.yaxis.uirevision != linear.layout.yaxis.uirevision
-    for actual, expected in zip((c['intensity'], r.baseline, r.corrected), before):
-        np.testing.assert_array_equal(actual, expected)
-
-
-def test_preview_display_does_not_refit_or_change_applied_exports(tmp_path):
+def test_background_intensity_choice_refits_and_updates_exports(tmp_path):
     from streamlit.testing.v1 import AppTest
     from cache_layer import cached_background_fit
     cached_background_fit.clear()
@@ -385,33 +393,45 @@ def test_preview_display_does_not_refit_or_change_applied_exports(tmp_path):
         app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60).run()
         widget(app, 'text_input', 'Data folder').set_value(str(tmp_path)).run()
         assert app.selectbox(key='bg_display').value == 'Linear'
+        assert 'log10' not in app.selectbox(key='bg_display').options
+        app.selectbox(key='bg_method').select('SNIP').run()
         app.button(key='bg_preview').click().run()
+        linear_preview = app.session_state['background_state'].preview
+        assert linear_preview is not None
+        previous_calls = fitted.call_count
+        app.selectbox(key='bg_display').select('Intensity × E²').run()
+        state = app.session_state['background_state']
+        assert state.preview is None and state.preview_key is None
+        assert state.draft.intensity_mode == 'energy_squared'
+        assert fitted.call_count == previous_calls
+        app.button(key='bg_preview').click().run()
+        state = app.session_state['background_state']
+        assert state.preview is not None and state.preview_key is not None
+        np.testing.assert_allclose(state.preview.input,
+                                   linear_preview.input * np.square(linear_preview.energy))
         app.button(key='bg_apply').click().run()
         state = app.session_state['background_state']
-        preview, preview_key = state.preview, state.preview_key
+        assert not app.exception and not app.error
+        assert state.applied_config.intensity_mode == 'energy_squared'
         c = dict(curve(), path=str(tmp_path / 'zero_residual.npy'))
-        before = background_npz([c], {}, state, 'Corrected')
-        calls = fitted.call_count
-        for display in ('log10', 'Linear'):
-            with patch('eels_core._open_scan', side_effect=AssertionError('Display must not reread scans')):
-                app.selectbox(key='bg_display').select(display).run()
-            assert not app.exception and not app.error
-            state = app.session_state['background_state']
-            assert state.preview_key == preview_key
-            np.testing.assert_array_equal(state.preview.corrected, preview.corrected)
-            assert fitted.call_count == calls
-            assert background_npz([c], {}, state, 'Corrected') == before
-            if display == 'log10':
-                assert any('No positive corrected samples' in text.value for text in app.info)
-                assert any('zero reference is hidden' in text.value for text in app.caption)
-        for key in ('bg_full_view', 'bg_focus_view'):
-            with patch('eels_core._open_scan', side_effect=AssertionError('View must not reread scans')):
-                app.button(key=key).click().run()
-            assert not app.exception and not app.error
-            state = app.session_state['background_state']
-            assert state.preview_key == preview_key
-            assert fitted.call_count == calls
-            assert background_npz([c], {}, state, 'Corrected') == before
+        exported = background_npz([c], {}, state, 'Corrected')
+        with np.load(io.BytesIO(exported), allow_pickle=False) as data:
+            np.testing.assert_allclose(data['curve_000_input'], state.preview.input)
+        app.radio(key='bg_signal').set_value('Input').run()
+        app.selectbox(key='intensity_display').select('Linear').run()
+        def spectrum_trace():
+            charts = [json.loads(chart.proto.spec) for chart in app.get('plotly_chart')]
+            return next(chart for chart in charts if chart['layout'].get('uirevision') == 'spectrum')
+        trace = spectrum_trace()['data'][0]['y']
+        np.testing.assert_allclose(np.frombuffer(base64.b64decode(trace['bdata']), dtype=trace['dtype']),
+                                   state.preview.input)
+        assert 'E²' in spectrum_trace()['layout']['yaxis']['title']['text']
+        app.selectbox(key='intensity_display').select('Intensity × E²').run()
+        assert spectrum_trace()['data'][0]['y'] == trace
+        app.selectbox(key='bg_display').select('Linear').run()
+        assert app.session_state['background_state'].preview is None
+        assert app.session_state['background_state'].applied_config.intensity_mode == 'energy_squared'
+        assert background_npz([c], {}, app.session_state['background_state'], 'Corrected') == exported
 
 
 def test_focused_preview_excludes_offscreen_zero_loss_from_intensity_limits():
@@ -419,14 +439,16 @@ def test_focused_preview_excludes_offscreen_zero_loss_from_intensity_limits():
     c['intensity'][np.argmin(abs(c['energy']))] = 1e6
     r = fit_background(c['energy'], c['intensity'], BackgroundConfig(energy_min=50, energy_max=100))
     fig = preview_figure(c, r, view_bounds=(50, 100))
-    assert fig.layout.xaxis.range == fig.layout.xaxis2.range == (50, 100)
+    assert fig.layout.xaxis.range == (50, 100)
     assert fig.layout.yaxis.range[1] < 10  # off-screen spike must not set the scale
-    assert fig.layout.yaxis2.range[0] < 0 < fig.layout.yaxis2.range[1]
+    assert fig.layout.yaxis.range[0] < 0 < fig.layout.yaxis.range[1]
     np.testing.assert_array_equal(fig.data[0].y, c['intensity'])  # no cropping of data
     np.testing.assert_array_equal(fig.data[2].y, r.corrected)
     full = preview_figure(c, r, view_bounds=(c['energy'][0], c['energy'][-1]), view_revision=1)
     assert full.layout.yaxis.range[1] > 1e6
     assert full.layout.xaxis.uirevision != fig.layout.xaxis.uirevision
-    logged = preview_figure(c, r, 'log10', view_bounds=(50, 100))
-    assert np.isfinite(logged.layout.yaxis.range).all()
-    assert logged.layout.yaxis.range[1] < 1
+    weighted_result = fit_background(c['energy'], c['intensity'],
+        BackgroundConfig(energy_min=50, energy_max=100, intensity_mode='energy_squared'))
+    weighted = preview_figure(c, weighted_result, 'energy_squared', view_bounds=(50, 100))
+    assert np.isfinite(weighted.layout.yaxis.range).all()
+    np.testing.assert_allclose(weighted.data[0].y, c['intensity'] * np.square(c['energy']))

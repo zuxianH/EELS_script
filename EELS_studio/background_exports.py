@@ -32,7 +32,9 @@ def background_metadata(curves, settings, state, signal):
         settings=dict(settings, processing_order=PROCESSING_ORDER),
         background=dict(configuration=asdict(config), algorithm_parameters=parameters, package=package,
                         package_version=package_version,
-                        fitted_input_stage="linear, energy-unweighted intensity after optional Gaussian broadening"),
+                        fitted_input_stage=("intensity × energy loss² (meV²) after optional Gaussian broadening"
+                                            if config.intensity_mode == "energy_squared" else
+                                            "linear, energy-unweighted intensity after optional Gaussian broadening")),
         curves=[dict(**{k: c[k] for k in ("label", "path", "dummy", "probe_x", "probe_y", "style") if k in c},
                      source_revision=state.source_revisions.get(c["path"]),
                      input_fingerprint=state.fingerprints[curve_identity_key(c)],

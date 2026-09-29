@@ -112,24 +112,24 @@ def cached_notebook_npy(curves):
     return buffer.getvalue()
 
 
-def spectrum_display_intensity(curve, mode, corrected=False):
-    """Apply display scaling without changing the stored or exported spectrum."""
+def spectrum_display_intensity(curve, mode, corrected=False, weighted=False):
+    """Apply display scaling without multiplying an already weighted fit twice."""
     if mode == "energy_squared":
-        return curve["intensity"] * np.square(curve["energy"])
+        return curve["intensity"] if weighted else curve["intensity"] * np.square(curve["energy"])
     transform = corrected_display if corrected else display_intensity
     return transform(curve["intensity"], mode)
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
-def figure_downloads(curves, mode, x_limits, normalize, dpi=300, corrected=False):
+def figure_downloads(curves, mode, x_limits, normalize, dpi=300, corrected=False, weighted=False):
     fig, ax = plt.subplots(figsize=(10, 5), layout="constrained")
     for curve in curves:
         style = curve["style"]
-        ax.plot(curve["energy"], spectrum_display_intensity(curve, mode, corrected),
+        ax.plot(curve["energy"], spectrum_display_intensity(curve, mode, corrected, weighted),
                 label=curve["label"], color=style["color"], linewidth=style["width"],
                 linestyle=LINE_STYLES[style["line_style"]][1])
     ax.set_xlabel("Energy loss (meV)")
-    ax.set_ylabel(intensity_label(mode, normalize, corrected))
+    ax.set_ylabel(intensity_label(mode, normalize, corrected, weighted))
     ax.set_xlim(*x_limits)
     ax.grid(alpha=0.16)
     ax.legend(fontsize=8, loc="upper left", bbox_to_anchor=(1.02, 1), frameon=False)
@@ -142,12 +142,12 @@ def figure_downloads(curves, mode, x_limits, normalize, dpi=300, corrected=False
     return result
 
 
-def intensity_label(mode, normalize, corrected=False):
+def intensity_label(mode, normalize, corrected=False, weighted=False):
     base = "Normalized detector intensity" if normalize else "Detector intensity"
     if corrected:
         base = "Background-subtracted " + base.lower()
-    if mode == "energy_squared":
-        return f"{base} × E² (meV²)"
+    if weighted or mode == "energy_squared":
+        base += " × E² (meV²)"
     return f"log10({base.lower()})" if mode == "log10" else base
 
 
@@ -403,11 +403,13 @@ with spectrum_tab:
         signal = "Input"
     background_state.signal = signal
     corrected = signal == "Corrected"
+    weighted = bool(background_state.applied_results and
+                    background_state.applied_config.intensity_mode == "energy_squared")
     controls = st.columns([1.3, 1, 1])
     display_modes = {"log10": "log10", "Linear": "linear", "Intensity × E²": "energy_squared"}
     mode_label = controls[0].selectbox(
         "Intensity display", list(display_modes), key="intensity_display",
-        help="Intensity × E² multiplies each intensity by its energy loss squared (in meV²). Applies to the plot and figure downloads.")
+        help="Intensity × E² multiplies unweighted spectra by energy loss squared (in meV²). Already weighted background results are not multiplied twice.")
     mode = display_modes[mode_label]
     x_min = controls[1].number_input("Energy min (meV)", value=-150.0, step=10.0, key="spectrum_x_min")
     x_max = controls[2].number_input("Energy max (meV)", value=150.0, step=10.0, key="spectrum_x_max")
@@ -452,12 +454,16 @@ with spectrum_tab:
                             "Drag the handle below the spectrum to change its height.")
         layout_reset.button("Reset panel layout", on_click=reset_panel_layout, width="stretch")
     st.session_state["spectrum_render_revision"] = st.session_state.get("spectrum_render_revision", 0) + 1
-    shown_curves = [dict(c, intensity=background_state.applied_results[curve_identity_key(c)].corrected)
-                    for c in curves] if corrected else curves
+    if weighted or corrected:
+        signal_array = "corrected" if corrected else "input"
+        shown_curves = [dict(c, intensity=getattr(background_state.applied_results[curve_identity_key(c)], signal_array))
+                        for c in curves]
+    else:
+        shown_curves = curves
     fig = go.Figure()
     for curve in shown_curves:
         style = curve["style"]
-        fig.add_trace(go.Scatter(x=curve["energy"], y=spectrum_display_intensity(curve, mode, corrected),
+        fig.add_trace(go.Scatter(x=curve["energy"], y=spectrum_display_intensity(curve, mode, corrected, weighted),
                                  name=curve["label"], mode="lines", connectgaps=False,
                                  line=dict(color=style["color"], width=style["width"],
                                            dash=LINE_STYLES[style["line_style"]][0]),
@@ -469,8 +475,8 @@ with spectrum_tab:
                       # Preserve exploration across recalculation; explicit limit edits still apply.
                       xaxis=dict(title="Energy loss (meV)", range=x_limits, zerolinecolor="#bdcbd4",
                                  gridcolor="#EAF0F7", hoverformat=".4f", uirevision=json.dumps([x_limits, st.session_state.get("workspace_revision", 0)])),
-                      yaxis=dict(title=intensity_label(mode, normalize, corrected), gridcolor="#EAF0F7",
-                                 uirevision=f"yaxis:{mode}:{st.session_state.get('workspace_revision', 0)}"))
+                      yaxis=dict(title=intensity_label(mode, normalize, corrected, weighted), gridcolor="#EAF0F7",
+                                 uirevision=f"yaxis:{mode}:{'weighted' if weighted else 'unweighted'}:{st.session_state.get('workspace_revision', 0)}"))
     workspace_row = st.container(key="workspace_row")
     with workspace_row:
         if show_detector:
@@ -582,7 +588,8 @@ with spectrum_tab:
                      on_layout_change=update_panel_layout)
     settings["plot"] = dict(mode=mode, x_limits=x_limits, show_hover_details=show_hover)
     with st.expander("Export spectra & figures", expanded=True):
-        st.caption("Data exports contain the full energy range and linear intensities. Figures use the display controls above; browser-only zoom and legend changes are not applied.")
+        data_stage = "energy²-weighted linear intensities" if weighted else "linear intensities"
+        st.caption(f"Data exports contain the full energy range and {data_stage}. Figures use the display controls above; browser-only zoom and legend changes are not applied.")
         if sigma_mev > 0:
             st.caption(f"All downloads include Gaussian broadening (σ = {sigma_mev:g} meV). Turn broadening off to export unbroadened spectra; NPZ records the processing settings.")
         png_dpi = st.selectbox("PNG export resolution", PNG_DPI_OPTIONS, index=PNG_DPI_OPTIONS.index(300),
@@ -608,7 +615,7 @@ with spectrum_tab:
             exports[2].download_button("Notebook .npy", cached_notebook_npy(shown_curves), "eels_spectra_corrected.npy" if corrected else "eels_spectra.npy", "application/octet-stream", use_container_width=True)
         else:
             exports[2].caption("Use NPZ for unequal energy lengths.")
-        figures = figure_downloads(shown_curves, mode, x_limits, normalize, png_dpi, corrected)
+        figures = figure_downloads(shown_curves, mode, x_limits, normalize, png_dpi, corrected, weighted)
         exports[3].download_button("SVG figure", figures["svg"], export_stem + ".svg", "image/svg+xml", use_container_width=True)
         exports[4].download_button("PNG figure", figures["png"], export_stem + ".png", "image/png", use_container_width=True)
 

@@ -17,7 +17,8 @@ from eels_core import curve_identity_key
 MIN_FIT_BINS = 8
 CONFIDENCE_Z = 1.959964  # normal-approximation 95% CI half-width multiplier
 PROCESSING_ORDER = ["detector integration / optional full-probe normalization", "energy ordering",
-                    "optional Gaussian broadening", "background estimation and subtraction",
+                    "optional Gaussian broadening", "optional intensity × energy² weighting",
+                    "background estimation and subtraction",
                     "display transform"]
 
 
@@ -74,6 +75,7 @@ class BackgroundConfig:
     tolerance: float = 1e-3
     max_iterations: int = 100
     half_window_mev: float = 10.0
+    intensity_mode: str = "linear"
     # ANALYTIC_MODELS only: 2-4 flanking energy segments (meV) that exclude the peak, and
     # the corresponding model's start point / bounds. domain/energy_min/energy_max are
     # still set (to the overall segment span) so the view's existing focus/zero-energy
@@ -115,6 +117,19 @@ class BackgroundResult:
     diagnostics: FitDiagnostics
 
 
+def background_input(energy, intensity, mode):
+    """Return the selected linear fitting signal on the original energy grid."""
+    if mode not in ("linear", "energy_squared"):
+        raise ValueError("Unknown background intensity mode")
+    values = np.asarray(intensity, dtype=float).copy()
+    if mode == "energy_squared":
+        with np.errstate(over="ignore", invalid="ignore"):
+            values *= np.square(np.asarray(energy, dtype=float))
+        if not np.isfinite(values).all():
+            raise ValueError("Energy²-weighted intensity must be finite")
+    return values
+
+
 def fit_background(energy, intensity, config: BackgroundConfig) -> BackgroundResult:
     """Fit one contiguous domain, never extrapolate or change the input grid.
 
@@ -129,6 +144,7 @@ def fit_background(energy, intensity, config: BackgroundConfig) -> BackgroundRes
         raise ValueError("Require matching 1D arrays with at least eight fitted bins")
     if not np.isfinite(x).all() or not np.isfinite(y).all():
         raise ValueError("Energy and intensity must be finite")
+    y = background_input(x, y, config.intensity_mode)
     steps = np.diff(x)
     if steps[0] <= 0 or not np.allclose(steps, steps[0], rtol=1e-8, atol=0):
         raise ValueError("Require a strictly increasing, uniform energy axis")
@@ -433,11 +449,12 @@ class BackgroundState:
 
 
 def config_caption(config):
+    stage = "intensity × E²" if config.intensity_mode == "energy_squared" else "linear intensity"
     if config.method in ANALYTIC_MODELS:
         segments = ", ".join(f"{lo:g}-{hi:g}" for lo, hi in config.segments)
         return (f"{config.method} · segments [{segments}] meV (x/{config.energy_factor:g}) · "
-               "fitted after optional Gaussian broadening")
+                f"{stage} after optional Gaussian broadening")
     parameters = (f"log10(λ)={config.log10_lambda:g}, tol={config.tolerance:g}, max iterations={config.max_iterations}"
                   if config.method == "arPLS" else f"half-window={config.half_window_mev:g} meV")
     domain = "each full recorded domain" if config.domain == "full" else f"requested {config.energy_min:g}–{config.energy_max:g} meV"
-    return f"{config.method} · {parameters} · {domain} · fitted after optional Gaussian broadening"
+    return f"{config.method} · {parameters} · {domain} · {stage} after optional Gaussian broadening"

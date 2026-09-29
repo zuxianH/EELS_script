@@ -44,6 +44,21 @@ class ConfigFormatTests(unittest.TestCase):
         self.assertNotIn('bg_apply', decoded['settings'])
         self.assertNotIn('detector_click', decoded['settings'])
 
+    def test_weighted_background_config_and_legacy_log_display(self):
+        from background_core import BackgroundConfig, BackgroundState
+
+        background = BackgroundState(applied_config=BackgroundConfig(intensity_mode='energy_squared'))
+        saved = config.encode_config({'bg_display': 'Intensity × E²', 'background_state': background})
+        decoded = config.decode_config(saved)
+        self.assertEqual(decoded['settings']['bg_display'], 'Intensity × E²')
+        self.assertEqual(decoded['background']['config']['intensity_mode'], 'energy_squared')
+        legacy = json.loads(saved)
+        legacy['settings']['bg_display'] = 'log10'
+        del legacy['background']['config']['intensity_mode']
+        migrated = config.decode_config(json.dumps(legacy).encode())
+        self.assertEqual(migrated['settings']['bg_display'], 'Linear')
+        self.assertEqual(migrated['background']['config']['intensity_mode'], 'linear')
+
     def test_invalid_config_does_not_change_existing_workspace(self):
         document = json.loads(config.encode_config({'data_folder': '/good', 'spectrum_stride': 3}))
         invalid = [b'not JSON', b'[]']
