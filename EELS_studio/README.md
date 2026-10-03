@@ -1,8 +1,16 @@
 # EELS Studio
 
-A local browser app for exploring vibrational EELS: select NumPy (`.npy`) or local Zarr diffraction scans, position a circular detector, compare spectra, subtract backgrounds, and build 2D/angle-resolved maps. 
+<!-- Use ASD-STE100-style language for README changes: short sentences, active
+voice, consistent technical terms, and one instruction in each sentence. -->
 
-## Run
+EELS Studio is a local browser application for vibrational EELS analysis.
+The application lets you select scans, position a circular detector, and compare spectra.
+It also supports background subtraction, 2D scan maps, and angle-resolved maps.
+Input formats include NumPy (`.npy`) files and local Zarr arrays.
+
+## Start the application
+
+Run these commands in a terminal:
 
 ```bash
 cd /home/zuxian/Documents/EELS_script/EELS_studio
@@ -11,117 +19,238 @@ python3 -m venv .venv
 ./run_app.sh
 ```
 
-Open http://localhost:8501 (binds to localhost only). Once `.venv` exists,
-`./run_app.sh` starts it from anywhere, including with an absolute path.
-The direct command `.venv/bin/python -m streamlit run app.py` still works from
-this directory. The package is imported locally; no installation step is needed.
+Open http://localhost:8501 in a browser.
+The server accepts connections from the local computer only.
 
-See [architecture and common changes](docs/architecture.md) and the
-[analysis workflow](docs/usage.md).
+After you create `.venv`, you can use the absolute path to `run_app.sh` from any directory.
+You can also run `.venv/bin/python -m streamlit run app.py` from the application directory.
+The application imports the local Python package directly.
+No separate package installation is necessary.
 
-## Usage
+See [Architecture](docs/architecture.md) for code locations and common changes.
+See [Analysis workflow](docs/usage.md) for the analysis procedure.
 
-- **Load scans** — click **Browse folders** in the sidebar or type a data-folder path, then select files. The folder-selection window opens on the computer running the app; an in-app browser appears if a desktop window is unavailable. Cancelling keeps the current folder. Supports 3D `(energy, px, py)` and 6D `(dummy, energy, probe_x, probe_y, px, py)` arrays.
-- **Detector** — set `px`, `py`, and `radius` under the detector image, or click the image to position the center. For 6D scans, pick probe positions in the sidebar.
-- **Spectrum** — choose **Linear**, **log10**, or **Intensity × E²**, set axis limits, customize line styles, and export as CSV/NumPy/SVG/PNG. The E² option uses energy in meV and applies to plots and figure downloads; data exports retain unscaled linear intensities. Changing the display mode resets the vertical range while retaining the horizontal view. Drag to pan, Shift+drag an axis to scale it, scroll to zoom, and use the legend to hide/isolate curves.
-- **Background subtraction** — in the **Background** tab, fit with arPLS, SNIP, or one of four analytic models, preview, then apply. Switch the Spectra view between Input/Corrected.
-- **2D scan maps** — under **Visualization → 2D scan map**, request one or more energies to see detector-summed intensity across probe positions.
-- **Angle-resolved EELS** — draw a rectangle on the diffraction image to sum a strip across one detector direction, producing an energy-vs-pixel map.
+## Load scans
 
-## Order compared files
+1. Click **Browse folders** in the sidebar.
+2. Select the data folder.
+3. Select the files under **Files to compare**.
 
-Below **Files to compare**, drag the filenames in **File order** to arrange them.
-You can also focus a filename and press **Alt + ↑ / ↓**. The selected files, plot curves, legend, and
-exports follow this order. Line styles stay with their files, and **Save config**
-retains the order for your next session.
+You can also enter a path in **Data folder**.
+The folder selection window opens on the computer that runs the application.
+If that window is not available, the application shows a folder browser.
+If you cancel folder selection, the current folder does not change.
+
+The application supports these array shapes:
+
+- 3D: `(energy, px, py)`.
+- 6D: `(dummy, energy, probe_x, probe_y, px, py)`.
+
+## Set the detector
+
+1. Set `px`, `py`, and `radius` below the detector image.
+2. For 6D scans, select probe positions in the sidebar.
+
+You can also click the detector image to set its center.
+
+## Examine spectra
+
+1. Select **Linear**, **log10**, or **Intensity × E²**.
+2. Set the energy limits.
+3. Set the line styles, if necessary.
+4. Select an export format: CSV, NumPy, SVG, or PNG.
+
+The E² display option uses energy in meV.
+It changes plots and figure downloads.
+It does not change numerical data exports.
+A display mode change resets the vertical range and keeps the horizontal view.
+
+Use these plot controls:
+
+- Drag the plot to move the view.
+- Hold **Shift** and drag an axis to change its scale.
+- Scroll over the plot to change the zoom.
+- Click a legend entry to hide its curve.
+- Double-click a legend entry to show only its curve.
+- Double-click the entry again to show all curves.
+
+## Subtract a background
+
+1. Open the **Background** tab.
+2. Select arPLS, SNIP, or one of the four analytic models.
+3. Set the fit parameters.
+4. Click **Preview**.
+5. Click **Apply to all spectra** after a valid preview.
+6. In **Spectra**, select **Input** or **Corrected**.
+
+## Make maps
+
+For a 2D scan map:
+
+1. Under **Visualization**, select **2D scan map**.
+2. Select a 6D scan.
+3. Enter one or more energies.
+
+Each map shows the detector sum at each probe position.
+
+For an angle-resolved map:
+
+1. Open the **Angle-resolved EELS** tab.
+2. Draw a rectangle on the diffraction image.
+3. Select the detector direction to keep.
+
+The application sums the strip across the other detector direction.
+The result is an energy-versus-pixel map.
+
+## Set the file order
+
+Below **Files to compare**, drag the filenames in **File order** to set their order.
+For keyboard control, select a filename.
+Then press **Alt + ↑ / ↓**.
+
+The selected files, plot curves, legend entries, and exports use this order.
+Line styles stay with their files.
+**Save config** saves the file order for the next session.
 
 ## Spectrum workspace layout
 
-**Spectra** uses fixed panel sizes and order: **Detector** on the left and
-**EELS Spectrum** on the right. Plot pan and zoom still work inside each chart.
-Adjustable panels are temporarily disabled to avoid lag. Their implementation
-is retained in `eels_studio/ui/components/panel_layout.py` and the adjacent
-`panel_layout.js`, controlled by
-`ADJUSTABLE_PANELS_ENABLED = False`. Saved custom panel sizes and order are
-retained for compatibility but ignored while this feature is disabled.
+**Spectra** shows **Detector** on the left and **EELS Spectrum** on the right.
+The panels have fixed sizes.
+You can move the view and change the zoom in each plot.
 
-## Save and resume a workspace
+Adjustable panels are disabled to prevent slow operation.
+The code remains in `eels_studio/ui/components/panel_layout.py` and the adjacent `panel_layout.js`.
+The control value is `ADJUSTABLE_PANELS_ENABLED = False`.
+Workspace configs keep saved panel sizes and order for compatibility.
+The application does not use these settings while adjustable panels are disabled.
 
-In the sidebar, open **Workspace config** and click **Save config** to download
-`eels-studio-config.json`. Keep a separate config for each analysis if useful.
-After restarting EELS Studio, choose that JSON file under **Config file**, then
-click **Load config**. You can also load a config while working to replace the
-current workspace settings.
+## Save a workspace
 
-Configs include the data folder, selected scans and probe positions, curve labels,
-line colors/styles/widths, detector geometry, normalization, energy calibration,
-broadening, intensity display and energy limits, previews, map settings and
-rectangles and export resolution. Background draft parameters are retained;
-previously applied background fits are recalculated from their saved parameters
-when the spectra are loaded. Settings for both visualization modes are retained
-when switching between spectra and 2D maps.
+1. Open **Workspace config** in the sidebar.
+2. Click **Save config** to download `eels-studio-config.json`.
 
-The JSON stores paths and settings, not scan data or cached arrays. Keep the
-original NumPy/Zarr data available at the same paths. If data moved, choose its
-new folder and reselect the scans; file-specific labels and styles are tied to
-original paths. Missing scans are reported. Manual plot zoom/pan, hidden legend
-entries, and prepared Zarr caches are not saved. Save the config again after
-making changes; saving is explicit, not automatic.
+Use a separate config file for each analysis, if necessary.
+Save the config again after you change settings.
+The application does not save changes automatically.
+
+The config includes these settings:
+
+- Data folder, selected scans, probe positions, and file order.
+- Curve labels, line colors, line styles, and line widths.
+- Detector geometry and normalization.
+- Energy calibration and Gaussian broadening.
+- Intensity display, energy limits, and preview settings.
+- Map settings, rectangle bounds, and export resolution.
+- Background draft parameters and applied fit parameters.
+
+The config contains paths and settings.
+It does not contain scan data or cached arrays.
+It does not save manual plot views, hidden legend entries, or prepared Zarr caches.
+
+## Load a workspace
+
+1. Open **Workspace config** in the sidebar.
+2. Select the saved JSON file under **Config file**.
+3. Click **Load config**.
+
+You can load a config after a restart or during a session.
+The loaded config replaces the current workspace settings.
+The application recalculates applied background fits from their saved parameters when it loads the spectra.
+It keeps settings for both visualization modes when you change between spectra and 2D scan maps.
+
+Keep the original NumPy or Zarr data at the saved paths.
+If the data moves, select its new folder.
+Then select the scans again.
+Labels and styles for each file use its original path.
+The application reports missing scans.
 
 ## NumPy and Zarr input
 
-In **Data folder**, choose the folder containing your `.npy` files and Zarr array
-directories (`.zarr` or `.zarray`). Both formats can be selected together under
-**Files to compare**. Pasted paths may include surrounding quotes, whitespace,
-or escaped underscores/spaces.
-You can also paste a Zarr array directory directly, such as
-`/scratch/project_465002371/zuxian/torched_TACAW/BTO_Ba-O_bussi/tacaw_results_stemeels/scan_gpu_tacaw.zarray`.
+In **Data folder**, select the folder that contains `.npy` files or Zarr array directories (`.zarr` or `.zarray`).
+You can select both formats under **Files to compare**.
+Paths can include quotes, spaces, or escaped underscores and spaces.
 
-Local Zarr v2/v3 arrays support the same real numeric 3D/6D shapes, spectra,
-diffraction previews, angle-resolved maps, background subtraction, and exports
-as NumPy. For a Zarr group, select the array directory inside it. ZIP stores and
-remote URLs are not supported. Existing environments need
-`.venv/bin/python -m pip install -r requirements.txt` once, then an app restart.
-Time step, sampling stride, and energy ordering still use the app controls;
-Zarr attributes do not automatically override them.
+You can also enter a Zarr array directory directly.
+For example:
 
-NumPy reads remain bounded to small blocks. Zarr reads only intersecting chunks,
-but each compressed chunk must be decoded in full. A per-operation cache retains
-up to 64 MiB of decoded data, or one larger chunk, and is released when that
-operation ends. Codec buffers need additional memory. Large chunks can therefore
-be much slower and require more RAM than NumPy; the app flags chunks above
-256 MiB. The example BTO array has 3.54 GiB uncompressed chunks, so use its `.npy`
-copy or rechunk a separate Zarr copy for faster interactive viewing.
+```text
+/scratch/project_465002371/zuxian/torched_TACAW/BTO_Ba-O_bussi/tacaw_results_stemeels/scan_gpu_tacaw.zarray
+```
 
-For 6D Zarr scans, selecting one probe also prepares the spectra of neighboring
-probes in the same spatial chunk. Only the small integrated spectra and
-normalization totals are cached; decoded chunks are released. Changing the
-normalization, energy calibration, or broadening reuses these spectra. Changing
-the detector geometry or source data requires fresh integration.
+Local Zarr v2 and v3 arrays support the same real numeric 3D and 6D shapes as NumPy.
+They also support spectra, diffraction previews, maps, background subtraction, and exports.
+For a Zarr group, select the array directory inside the group.
+The application does not support ZIP stores or remote URLs.
 
-To browse arbitrary probe positions repeatedly, click **Prepare all Zarr probe
-spectra** after choosing the detector. It reads every selected 6D Zarr scan once
-and caches the reduced spectra. The initial pass can take several minutes for
-large scans. Preparation is retained in the running app's memory, not across
-restarts. This option is shown when the selected scans fit within the cache's
-256 spatial-tile entries. For the BTO 2D scan, each tile covers 3 × 3 probes;
-100 tiles cover all 900 probe positions. Diffraction previews and angle-resolved
-maps still read raw detector data; the prepared cache accelerates spectrum
-extraction when adding probe positions.
+For an existing environment, run `.venv/bin/python -m pip install -r requirements.txt` once.
+Then restart the application.
+Use the application controls to set the time step, sampling stride, and energy order.
+Zarr attributes do not replace these settings automatically.
 
-Inspection reads metadata and checks file stats without loading array values.
-Changes to metadata or nested chunk files invalidate cached results. Use completed
-simulation outputs: reading while a simulation writes can combine different
-stages of its output. No input data is modified.
+### Memory use
 
-## Tests
+NumPy reads data in small blocks.
+Zarr reads only the chunks that contain the requested data.
+It must decode each compressed chunk in full.
+
+Each read operation has a cache for decoded data.
+The cache keeps up to 64 MiB or one larger chunk.
+The operation releases the cache when it ends.
+Codec buffers use additional memory.
+
+Large Zarr chunks can need more memory and time than NumPy reads.
+The application shows a message for chunks above 256 MiB.
+The example BTO array has uncompressed chunks of 3.54 GiB.
+Use its `.npy` copy for faster access.
+Alternatively, change the chunk size of a separate Zarr copy.
+
+### Prepare Zarr spectra
+
+For 6D Zarr scans, one probe selection also prepares spectra for adjacent probes in the same spatial chunk.
+The cache keeps only the integrated spectra and normalization totals.
+The operation releases decoded chunks after use.
+
+Changes to normalization, energy calibration, or broadening use the cached spectra again.
+Changes to detector geometry or source data require a new integration.
+
+To prepare all probe positions:
+
+1. Set the detector.
+2. Click **Prepare all Zarr probe spectra**.
+
+The application reads each selected 6D Zarr scan once and caches the reduced spectra.
+This first read can take several minutes for large scans.
+The application keeps prepared spectra in memory.
+A restart clears the cache.
+
+The preparation control appears if the selected scans fit within 256 spatial-tile cache entries.
+For the BTO 2D scan, each tile contains 3 × 3 probes.
+A total of 100 tiles contains all 900 probe positions.
+
+Diffraction previews and angle-resolved maps continue to read raw detector data.
+The prepared cache makes spectrum extraction faster when you add probe positions.
+
+### Source data changes
+
+File inspection reads metadata and checks file attributes without a read of array values.
+Changes to metadata or nested chunk files invalidate cached results.
+
+Use data from completed simulations.
+A simulation can change data during a read.
+That read can combine data from different simulation stages.
+The application does not change input data.
+
+## Run tests
+
+Run these commands from the application directory:
 
 ```bash
 .venv/bin/python -m pip install pytest
 .venv/bin/python -m pytest -q
 ```
 
-Browser-gesture tests are optional and need Playwright plus a browser:
+Browser interaction tests require Playwright and a browser.
+To use Firefox, run these commands:
 
 ```bash
 .venv/bin/python -m pip install playwright
@@ -129,17 +258,18 @@ Browser-gesture tests are optional and need Playwright plus a browser:
 EELS_BROWSER=firefox .venv/bin/python -m pytest -q tests/test_axis_browser.py tests/test_angle_browser.py tests/test_background_browser.py
 ```
 
-For an installed Chrome, run the complete suite, including detector, file-order,
-and workspace browser checks:
+To use an installed Chrome browser, run the complete test suite:
 
 ```bash
 EELS_CHROME_PATH=/opt/google/chrome/chrome .venv/bin/python -m pytest -q
 ```
 
-Use your Chrome executable's actual path. Tests using notebook reference functions
-skip when the optional `STEM-EELS.ipynb` file is absent. Panel-resizing browser tests
-skip while adjustable panels are disabled.
+Use the actual path to your Chrome executable.
+The complete suite includes detector, file order, and workspace browser tests.
+Notebook reference tests skip if the optional `STEM-EELS.ipynb` file is absent.
+Panel resize tests skip while adjustable panels are disabled.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+The project uses the MIT license.
+See [LICENSE](LICENSE).
