@@ -5,9 +5,8 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from eels_core import (extract_angle_resolved, inspect_scan, rectangle_from_plot,
-                       process_angle_resolved, energy_loss_axis_mev,
-                       gaussian_broaden_spectrum)
+from eels_studio.core.spectra import extract_angle_resolved, rectangle_from_plot, process_angle_resolved, energy_loss_axis_mev, gaussian_broaden_spectrum
+from eels_studio.io.scans import inspect_scan
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -86,11 +85,11 @@ def test_map_processing_preserves_pixel_axis():
 
 
 def test_rectangle_callback_and_stale_events():
-    from angle_resolved import receive_rectangle
+    from eels_studio.ui.components.rectangle_select import receive_rectangle
     keys = ["r0", "r1", "c0", "c1"]
     state = dict(angle_rectangle_context=dict(preview_id="current", shape=(7, 11), bound_keys=keys),
                  angle_rectangle=dict(selected=dict(preview_id="old", x0=2.5, x1=8.5, y0=0.5, y1=4.5)))
-    with patch("angle_resolved.st.session_state", state):
+    with patch("eels_studio.ui.components.rectangle_select.st.session_state", state):
         receive_rectangle()
         assert "r0" not in state
         state["angle_rectangle"]["selected"]["preview_id"] = "current"
@@ -100,11 +99,11 @@ def test_rectangle_callback_and_stale_events():
 
 def test_angle_resolved_app_and_exports(tmp_path):
     from streamlit.testing.v1 import AppTest
-    from angle_resolved import export_map
+    from eels_studio.ui.angle_resolved import export_map
     path = tmp_path / "scan_T300K.npy"
     data = np.arange(1, 1 + 21 * 7 * 11, dtype=float).reshape(21, 7, 11)
     np.save(path, data)
-    with patch("angle_resolved.export_map", wraps=export_map) as exported:
+    with patch("eels_studio.ui.angle_resolved.export_map", wraps=export_map) as exported:
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
         assert not app.exception and not app.error
@@ -154,7 +153,8 @@ def test_map_roi_survives_switching_different_planes(tmp_path):
 
 
 def test_map_plot_and_export_single_pixel():
-    from angle_resolved import map_display, map_figures
+    from eels_studio.core.display import map_display
+    from eels_studio.ui.angle_resolved import map_figures
     shown = map_display(np.array([[0.0], [1.0], [10.0]]), True)
     assert np.isnan(shown[0, 0])
     np.testing.assert_array_equal(shown[1:, 0], [0, 1])

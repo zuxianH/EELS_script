@@ -205,6 +205,12 @@ def test_preview_interval_edit_replaces_old_boundary(spectrum_page, tmp_path, me
     y = 2 + .001 * energy + .05 * np.sin(energy / 3) + np.exp(-((energy - 520) / 5) ** 2)
     np.save(tmp_path / 'scan_T300K.npy', y[:, None, None])
     page.get_by_role('button', name='Refresh files', exact=True).click()
+    # Wait for the replacement data to reach the chart before opening controls;
+    # otherwise the refresh can redraw the selectbox while its menu is open.
+    page.wait_for_function('''() => {
+        const c = document.querySelector('.st-key-spectrum_axis_target .js-plotly-plot');
+        return c?._fullData?.[0]?.x.length === 600;
+    }''')
     open_background(page)
     if method == "SNIP":
         page.locator('.st-key-bg_method [role="combobox"]').click()
@@ -231,7 +237,9 @@ def test_preview_interval_edit_replaces_old_boundary(spectrum_page, tmp_path, me
     try:
         page.wait_for_function('''() => {
             const c = document.querySelector('.st-key-background_preview_plot .js-plotly-plot');
-            const rects = c?._fullLayout?.shapes.filter(s => s.type === 'rect');
+            // Peak-area rectangles have names; only unnamed rectangles show
+            // the fitting domain. They must follow the newly requested bounds.
+            const rects = c?._fullLayout?.shapes.filter(s => s.type === 'rect' && !s.name);
             return rects?.length === 1 && rects.every(s => s.x0 >= 150 && s.x0 < 151 && s.x1 <= 250);
         }''', timeout=5000)
     except PlaywrightTimeoutError:
@@ -257,6 +265,10 @@ def test_focus_interval_rescales_intensity_without_refitting(spectrum_page, tmp_
     y[300] = 1e6  # dominant zero-loss bin outside the selected viewing interval
     np.save(tmp_path / 'scan_T300K.npy', y[:, None, None])
     page.get_by_role('button', name='Refresh files', exact=True).click()
+    page.wait_for_function('''() => {
+        const c = document.querySelector('.st-key-spectrum_axis_target .js-plotly-plot');
+        return c?._fullData?.[0]?.x.length === 600;
+    }''')
     open_background(page)
     page.locator('.st-key-bg_method [role="combobox"]').click()
     page.get_by_role('option', name='SNIP', exact=True).click()

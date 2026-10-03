@@ -31,7 +31,7 @@ def update_panel_layout():
     event = st.session_state.get("panel_layout_bridge", {}).get("layout")
     if not isinstance(event, dict):
         return
-    from workspace_config import _setting
+    from eels_studio.ui.workspace_config import _setting
     try:
         values = {key: _setting(key, event[key]) for key in DEFAULTS}
     except (KeyError, ValueError, TypeError, OverflowError):

@@ -5,9 +5,36 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from eels_core import (circular_detector_mask, detector_scan_map, diffraction_pattern,
-                       energy_loss_axis_mev, extract_spectrum, inspect_scan)
+from eels_studio.core.spectra import circular_detector_mask, detector_scan_map, diffraction_pattern, energy_loss_axis_mev, extract_spectrum
+from eels_studio.io.scans import inspect_scan
 from test_eels import ROOT
+
+
+@pytest.mark.parametrize("bins", [7, 8])
+@pytest.mark.parametrize("ordering", ["FFT-shifted (notebook default)", "Unshifted FFT"])
+@pytest.mark.parametrize("sigma", [0.0, 0.85])
+def test_core_map_reduction_matches_energy_axis_convolution(bins, ordering, sigma):
+    """The bounded map reducer must match a full-array reference, including edges."""
+    from scipy.ndimage import gaussian_filter1d
+    from eels_studio.core.maps import broadened_scan_map, selected_map_bins
+
+    raw = np.random.default_rng(41).uniform(0.1, 4, (bins, 2, 3))
+    axis = np.arange(bins, dtype=float) - bins // 2
+    ordered = np.fft.fftshift(raw, axes=0) if ordering == "Unshifted FFT" else raw
+    reference = gaussian_filter1d(ordered, sigma, axis=0, mode="reflect", truncate=4.0) if sigma else ordered
+    entries = selected_map_bins(axis, [(axis[0], axis[0]), (axis[1], axis[-2]),
+                                      (axis[-1], axis[-1])], ordering)
+    reads = []
+
+    def read_map(index):
+        reads.append(index)
+        # One already-reduced energy slice per call, never the full source scan.
+        return raw[index]
+
+    for entry in entries:
+        actual = broadened_scan_map(entry, axis, ordering, sigma, read_map)
+        np.testing.assert_allclose(actual, reference[entry["axis_indices"]].sum(axis=0), rtol=1e-14)
+    assert reads and all(0 <= index < bins for index in reads)
 
 
 @pytest.mark.parametrize("order", ["C", "F"])
@@ -75,7 +102,7 @@ def test_map_app_defaults_and_no_spectrum_extraction(tmp_path):
     from streamlit.testing.v1 import AppTest
     path = tmp_path / "zero_scan.npy"
     np.save(path, np.zeros((2, 7, 3, 4, 5, 6)))
-    with patch("eels_core.extract_spectrum", side_effect=AssertionError("Map should not extract spectra")):
+    with patch("eels_studio.ui.cache_layer.extract_spectrum", side_effect=AssertionError("Map should not extract spectra")):
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
         app.radio(key="visualization").set_value("2D scan map").run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
@@ -133,19 +160,19 @@ def test_supported_npy_header_versions(tmp_path, version):
 
 @pytest.mark.parametrize("text", ["", " , ; ", "20, bad", "nan", "10, inf", "20-10"])
 def test_invalid_map_energy_list(text):
-    from scan_map_view import parse_map_energies
+    from eels_studio.core.maps import parse_map_energies
     with pytest.raises(ValueError):
         parse_map_energies(text)
 
 
 def test_map_energy_list_parses_points_and_ranges():
-    from scan_map_view import parse_map_energies
+    from eels_studio.core.maps import parse_map_energies
     requests = parse_map_energies("20, -40; 6e1\n60.01 10-20")
     assert requests == [(20, 20), (-40, -40), (60, 60), (60.01, 60.01), (10, 20)]
 
 
 def test_map_energy_list_and_duplicate_bins():
-    from scan_map_view import parse_map_energies, selected_map_bins
+    from eels_studio.core.maps import parse_map_energies, selected_map_bins
     requests = parse_map_energies("20, -40; 6e1\n60.01")
     axis = np.array([-60., -40., -20., 0., 20., 40., 60.])
     for ordering in ("FFT-shifted (notebook default)", "Unshifted FFT"):
@@ -157,7 +184,8 @@ def test_map_energy_list_and_duplicate_bins():
 
 
 def test_map_energy_range_sums_every_enclosed_bin():
-    from scan_map_view import bin_title, selected_map_bins
+    from eels_studio.ui.scan_map_view import bin_title
+    from eels_studio.core.maps import selected_map_bins
     axis = np.array([-60., -40., -20., 0., 20., 40., 60.])
     bins = selected_map_bins(axis, [(-25, 25)], "FFT-shifted (notebook default)")
     assert len(bins) == 1
@@ -172,13 +200,13 @@ def test_map_energy_range_sums_every_enclosed_bin():
 
 def test_app_multiple_energy_maps_and_exports(tmp_path):
     from streamlit.testing.v1 import AppTest
-    from scan_map_view import cached_scan_map
+    from eels_studio.ui.scan_map_view import cached_scan_map
 
     data = np.arange(1, 1 + 7 * 3 * 4 * 5 * 6, dtype=float).reshape(1, 7, 3, 4, 5, 6)
     np.save(tmp_path / "multi_energy.npy", data)
     cached_scan_map.clear()
-    with patch("scan_map_view.np.savez_compressed", wraps=np.savez_compressed) as exports, \
-         patch("scan_map_view.detector_scan_map", wraps=detector_scan_map) as reads:
+    with patch("eels_studio.io.map_exports.np.savez_compressed", wraps=np.savez_compressed) as exports, \
+         patch("eels_studio.ui.scan_map_view.detector_scan_map", wraps=detector_scan_map) as reads:
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
         app.radio(key="visualization").set_value("2D scan map").run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
@@ -226,12 +254,12 @@ def test_app_multiple_energy_maps_and_exports(tmp_path):
 
 def test_app_energy_range_sums_every_enclosed_bin(tmp_path):
     from streamlit.testing.v1 import AppTest
-    from scan_map_view import cached_scan_map
+    from eels_studio.ui.scan_map_view import cached_scan_map
 
     data = np.arange(1, 1 + 7 * 3 * 4 * 5 * 6, dtype=float).reshape(1, 7, 3, 4, 5, 6)
     np.save(tmp_path / "range_energy.npy", data)
     cached_scan_map.clear()
-    with patch("scan_map_view.np.savez_compressed", wraps=np.savez_compressed) as exports:
+    with patch("eels_studio.io.map_exports.np.savez_compressed", wraps=np.savez_compressed) as exports:
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
         app.radio(key="visualization").set_value("2D scan map").run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()

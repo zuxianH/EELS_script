@@ -4,8 +4,8 @@ import os
 
 import streamlit as st
 
-from native_folder_picker import choose_directory
-from scan_sources import resolve_data_directory
+from eels_studio.ui.native_folder_picker import choose_directory
+from eels_studio.io.scan_sources import resolve_data_directory
 
 
 def _navigate(path):

@@ -8,8 +8,8 @@ import numpy as np
 import pybaselines
 import scipy
 
-from background_core import ANALYTIC_MODELS, BACKGROUND_MODELS, PROCESSING_ORDER
-from eels_core import curve_identity_key
+from eels_studio.core.background import ANALYTIC_MODELS, BACKGROUND_MODELS, PROCESSING_ORDER
+from eels_studio.core.identity import curve_identity_key
 
 SCHEMA_VERSION = 1
 

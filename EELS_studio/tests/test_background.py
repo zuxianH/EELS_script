@@ -11,12 +11,15 @@ import numpy as np
 import pytest
 from pybaselines import Baseline
 
-from background_core import (BackgroundConfig, BackgroundState, corrected_display,
-    fit_background, initial_bounds, input_fingerprints, PROCESSING_ORDER)
-from background_exports import background_csv, background_npz
-from background_view import preview_figure
-from eels_core import (curve_identity_key, display_intensity, energy_loss_axis_mev,
-                       extract_spectrum, gaussian_broaden_spectrum, inspect_scan)
+from eels_studio.core.background import BackgroundConfig, fit_background, initial_bounds, PROCESSING_ORDER
+from eels_studio.ui.state import BackgroundState, input_fingerprints
+from eels_studio.core.display import corrected_display
+from eels_studio.io.background_exports import background_csv, background_npz
+from eels_studio.ui.background_view import preview_figure
+from eels_studio.core.identity import curve_identity_key
+from eels_studio.core.display import display_intensity
+from eels_studio.core.spectra import energy_loss_axis_mev, extract_spectrum, gaussian_broaden_spectrum
+from eels_studio.io.scans import inspect_scan
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -279,7 +282,7 @@ def test_app_background_workflow_processing_and_maps(tmp_path):
     data[:, :, :] *= (3 + np.exp(-((np.arange(101) - 65) / 3) ** 2))[:, None, None]
     np.save(tmp_path / "a.npy", data)
     np.save(tmp_path / "b.npy", np.broadcast_to(data[None, :, None, None], (1, 101, 2, 1, 3, 3)).copy())
-    with patch("background_core.fit_background", wraps=fit_background) as fitted:
+    with patch("eels_studio.core.background.fit_background", wraps=fit_background) as fitted:
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60).run()
         widget(app, "text_input", "Data folder").set_value(str(tmp_path)).run()
         assert not app.exception and not app.error
@@ -317,8 +320,8 @@ def test_app_background_workflow_processing_and_maps(tmp_path):
         assert app.session_state["background_state"].applied_config.half_window_mev == 20
         assert any("Unapplied edits" in c.value for c in app.caption)
         # Angle-resolved metadata must remain independent even while corrected is selected.
-        from angle_resolved import export_map
-        with patch("angle_resolved.export_map", wraps=export_map) as exported:
+        from eels_studio.ui.angle_resolved import export_map
+        with patch("eels_studio.ui.angle_resolved.export_map", wraps=export_map) as exported:
             app.run()
             assert not app.exception
             metadata = exported.call_args.args[3]
@@ -349,13 +352,13 @@ def test_atomic_failure_after_a_valid_curve():
 def test_app_partial_exports_lambda_sync_and_no_scan_reads(tmp_path):
     from streamlit.testing.v1 import AppTest
     from matplotlib.axes import Axes
-    from background_exports import background_npz as export_background
-    from cache_layer import cached_background_fit
+    from eels_studio.io.background_exports import background_npz as export_background
+    from eels_studio.ui.cache_layer import cached_background_fit
     cached_background_fit.clear()
     np.save(tmp_path / "constant.npy", np.ones((101, 3, 3)))
     app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=60).run()
     widget(app, "text_input", "Data folder").set_value(str(tmp_path)).run()
-    with patch("eels_core._open_scan", side_effect=AssertionError("Background controls must reuse extraction caches")):
+    with patch("eels_studio.core.spectra._open_scan", side_effect=AssertionError("Background controls must reuse extraction caches")):
         app.slider(key="bg_lambda_slider").set_value(6.).run()
         assert app.number_input(key="bg_lambda_number").value == 6
         app.number_input(key="bg_lambda_number").set_value(4.).run()
@@ -364,7 +367,7 @@ def test_app_partial_exports_lambda_sync_and_no_scan_reads(tmp_path):
         assert not app.session_state["background_state"].applied_results
         original_plot = Axes.plot
         with patch.object(Axes, "plot", autospec=True, side_effect=original_plot) as plotted, \
-                patch("background_exports.background_npz", wraps=export_background) as exported:
+                patch("eels_studio.io.background_exports.background_npz", wraps=export_background) as exported:
             app.button(key="bg_apply").click().run()
             assert not app.exception and not app.error
             assert app.radio(key="bg_signal").value == "Corrected"
@@ -386,10 +389,10 @@ def test_app_partial_exports_lambda_sync_and_no_scan_reads(tmp_path):
 
 def test_background_intensity_choice_refits_and_updates_exports(tmp_path):
     from streamlit.testing.v1 import AppTest
-    from cache_layer import cached_background_fit
+    from eels_studio.ui.cache_layer import cached_background_fit
     cached_background_fit.clear()
     np.save(tmp_path / 'zero_residual.npy', np.ones((101, 3, 3)))
-    with patch('background_core.fit_background', wraps=fit_background) as fitted:
+    with patch('eels_studio.core.background.fit_background', wraps=fit_background) as fitted:
         app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60).run()
         widget(app, 'text_input', 'Data folder').set_value(str(tmp_path)).run()
         assert app.selectbox(key='bg_display').value == 'Linear'

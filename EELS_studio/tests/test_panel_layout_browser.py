@@ -2,7 +2,7 @@
 import json
 
 import pytest
-from panel_layout import ADJUSTABLE_PANELS_ENABLED
+from eels_studio.ui.components.panel_layout import ADJUSTABLE_PANELS_ENABLED
 
 pytestmark = pytest.mark.skipif(
     not ADJUSTABLE_PANELS_ENABLED, reason="Adjustable panels are temporarily disabled")

@@ -1,7 +1,7 @@
 """Two clicks set draft interval endpoints without applying a fit."""
 import pytest
 
-from background_click import apply_boundary_click
+from eels_studio.ui.components.background_click import apply_boundary_click
 
 
 def state_for(target='fit'):

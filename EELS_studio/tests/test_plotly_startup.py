@@ -20,7 +20,7 @@ def test_startup_waits_for_pandas_before_plotly_validation():
         tree = ast.parse(Path(sys.argv[1]).read_text())
         startup = []
         for node in tree.body:
-            if isinstance(node, ast.ImportFrom) and node.module == 'eels_core':
+            if isinstance(node, ast.ImportFrom) and node.module == 'eels_studio.core.display':
                 break
             startup.append(node)
         bootstrap = ast.Module(body=startup, type_ignores=[])
@@ -74,5 +74,5 @@ def test_startup_waits_for_pandas_before_plotly_validation():
             timer.cancel()
             thread.join(30)
     ''')
-    subprocess.run([sys.executable, '-c', script, str(ROOT / 'app.py')],
+    subprocess.run([sys.executable, '-c', script, str(ROOT / 'eels_studio' / 'ui' / 'plotting.py')],
                    check=True, capture_output=True, text=True, timeout=90)

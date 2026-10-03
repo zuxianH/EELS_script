@@ -3,7 +3,7 @@ import json
 
 import pytest
 
-from panel_layout import ADJUSTABLE_PANELS_ENABLED
+from eels_studio.ui.components.panel_layout import ADJUSTABLE_PANELS_ENABLED
 from test_axis_browser import spectrum_page
 
 

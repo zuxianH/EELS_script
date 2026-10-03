@@ -5,12 +5,19 @@ A local browser app for exploring vibrational EELS: select NumPy (`.npy`) or loc
 ## Run
 
 ```bash
+cd /home/zuxian/Documents/EELS_script/EELS_studio
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m streamlit run app.py
+./run_app.sh
 ```
 
-Open http://localhost:8501 (binds to localhost only). Once `.venv` exists, `./run_app.sh` starts it from anywhere.
+Open http://localhost:8501 (binds to localhost only). Once `.venv` exists,
+`./run_app.sh` starts it from anywhere, including with an absolute path.
+The direct command `.venv/bin/python -m streamlit run app.py` still works from
+this directory. The package is imported locally; no installation step is needed.
+
+See [architecture and common changes](docs/architecture.md) and the
+[analysis workflow](docs/usage.md).
 
 ## Usage
 
@@ -33,7 +40,8 @@ retains the order for your next session.
 **Spectra** uses fixed panel sizes and order: **Detector** on the left and
 **EELS Spectrum** on the right. Plot pan and zoom still work inside each chart.
 Adjustable panels are temporarily disabled to avoid lag. Their implementation
-is retained in `panel_layout.py` and `panel_layout.js`, controlled by
+is retained in `eels_studio/ui/components/panel_layout.py` and the adjacent
+`panel_layout.js`, controlled by
 `ADJUSTABLE_PANELS_ENABLED = False`. Saved custom panel sizes and order are
 retained for compatibility but ignored while this feature is disabled.
 
@@ -120,6 +128,17 @@ Browser-gesture tests are optional and need Playwright plus a browser:
 .venv/bin/python -m playwright install firefox
 EELS_BROWSER=firefox .venv/bin/python -m pytest -q tests/test_axis_browser.py tests/test_angle_browser.py tests/test_background_browser.py
 ```
+
+For an installed Chrome, run the complete suite, including detector, file-order,
+and workspace browser checks:
+
+```bash
+EELS_CHROME_PATH=/opt/google/chrome/chrome .venv/bin/python -m pytest -q
+```
+
+Use your Chrome executable's actual path. Tests using notebook reference functions
+skip when the optional `STEM-EELS.ipynb` file is absent. Panel-resizing browser tests
+skip while adjustable panels are disabled.
 
 ## License
 

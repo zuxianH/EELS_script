@@ -3,7 +3,7 @@ import pytest
 
 from test_axis_browser import spectrum_page
 from test_panel_layout_browser import drag
-from panel_layout import ADJUSTABLE_PANELS_ENABLED
+from eels_studio.ui.components.panel_layout import ADJUSTABLE_PANELS_ENABLED
 
 
 def wait_ready(page):

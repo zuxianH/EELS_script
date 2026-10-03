@@ -6,7 +6,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from scan_sources import resolve_data_directory
+from eels_studio.io.scan_sources import resolve_data_directory
 
 ROOT = Path(__file__).resolve().parents[1]
 

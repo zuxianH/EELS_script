@@ -1,15 +1,15 @@
 """Background tab for the existing EELS Studio interface."""
 import numpy as np
-import plotly.graph_objects as go
+from eels_studio.ui.plotting import go, LINE_STYLES
 import streamlit as st
 
-from background_core import (ANALYTIC_MODELS, BACKGROUND_MODELS, BackgroundConfig, auto_segments_from_peaks,
-                             background_input, config_caption, default_analytic_segments, initial_bounds)
-from cache_layer import cached_background_fit
-from eels_core import curve_identity_key
-from axis_scaling import register_axis_scaling
-from background_click import render_boundary_picker, reset_boundary_pick
-from background_area import integrate_area, symmetric_bounds, normalize_to_original
+from eels_studio.core.background import ANALYTIC_MODELS, BACKGROUND_MODELS, BackgroundConfig, auto_segments_from_peaks, background_input, default_analytic_segments, initial_bounds
+from eels_studio.ui.plotting import config_caption
+from eels_studio.ui.cache_layer import cached_background_fit
+from eels_studio.core.identity import curve_identity_key
+from eels_studio.ui.components.axis_scaling import register_axis_scaling
+from eels_studio.ui.components.background_click import render_boundary_picker, reset_boundary_pick
+from eels_studio.core.integration import integrate_area, symmetric_bounds, normalize_to_original
 
 
 def _select_pick_target(target):
@@ -100,7 +100,7 @@ def preview_figure(curve, result=None, mode="linear", *, view_bounds=None, view_
             fig.add_trace(go.Scatter(x=result.energy, y=result.baseline, name="Estimated baseline (dashed)",
                 mode="lines", connectgaps=False, line=dict(color="#485868", width=2, dash="dash")))
             style = curve["style"]
-            dash = {"Solid": "solid", "Dashed": "dash", "Dotted": "dot", "Dash-dot": "dashdot"}[style["line_style"]]
+            dash = LINE_STYLES[style["line_style"]][0]
             fig.add_trace(go.Scatter(x=result.energy, y=result.corrected, name="Corrected (input − baseline)",
                 mode="lines", connectgaps=False, line=dict(color=style["color"], width=style["width"], dash=dash)))
     fig.add_hline(y=0, line_color="#88949e", line_width=1)

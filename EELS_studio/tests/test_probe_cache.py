@@ -6,8 +6,9 @@ import numpy as np
 import pytest
 import zarr
 
-from cache_layer import spectrum_tile_tasks, spectrum_from_zarr_tile
-from eels_core import extract_spectrum, inspect_scan
+from eels_studio.ui.cache_layer import spectrum_tile_tasks, spectrum_from_zarr_tile
+from eels_studio.core.spectra import extract_spectrum
+from eels_studio.io.scans import inspect_scan
 
 ROOT = Path(__file__).resolve().parents[1]
 

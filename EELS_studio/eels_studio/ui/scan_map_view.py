@@ -1,17 +1,15 @@
 """Interactive raw detector map at selected energies or energy ranges of a 6D probe scan."""
 import io
-import json
-import re
 from pathlib import Path
 
-import matplotlib.pyplot as plt
+from eels_studio.ui.plotting import plt, go
 import numpy as np
-import plotly.graph_objects as go
 import streamlit as st
 
-from eels_core import (circular_detector_mask, detector_center, detector_scan_map,
-                       energy_loss_axis_mev, gaussian_broaden_spectrum)
-from cache_layer import PNG_DPI_OPTIONS
+from eels_studio.core.spectra import circular_detector_mask, detector_center, detector_scan_map, energy_loss_axis_mev
+from eels_studio.core.maps import parse_map_energies, selected_map_bins, broadened_scan_map
+from eels_studio.io.map_exports import all_maps_npz_bytes as _all_maps_npz_bytes
+from eels_studio.ui.cache_layer import PNG_DPI_OPTIONS
 
 
 def reset_map_detector_center():
@@ -25,89 +23,12 @@ def cached_scan_map(info, raw_index, dummy, radius, offset_px, offset_py):
                              offset_px=offset_px, offset_py=offset_py)
 
 
-_NUMBER = r"-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?"
-_RANGE_PATTERN = re.compile(rf"^(?P<lo>{_NUMBER})-(?P<hi>{_NUMBER})$")
-
-
-def parse_map_energies(text):
-    """Parse map energy requests separated by commas, semicolons, or whitespace.
-
-    A plain value like "20" requests the single nearest stored bin. A range like
-    "10-20" requests every bin whose energy falls within that window, inclusive.
-    Returns a list of (lo, hi) tuples, with lo == hi for plain values.
-    """
-    tokens = [token for token in re.split(r"[,;\s]+", text.strip()) if token]
-    if not tokens:
-        raise ValueError("Enter at least one map energy or range, for example: 20, 40, 10-20")
-    requests = []
-    for token in tokens:
-        match = _RANGE_PATTERN.match(token)
-        if match:
-            lo, hi = float(match["lo"]), float(match["hi"])
-        else:
-            try:
-                lo = hi = float(token)
-            except ValueError:
-                raise ValueError(
-                    "Enter numeric map energies or ranges separated by commas, for example: 20, 40, 10-20"
-                ) from None
-        if not (np.isfinite(lo) and np.isfinite(hi)):
-            raise ValueError("Map energies must be finite numbers")
-        if lo > hi:
-            raise ValueError(f"Range '{token}' must have its lower bound first, for example: 10-20")
-        requests.append((lo, hi))
-    return requests
-
-
-def selected_map_bins(axis, requests, ordering):
-    """Group requests mapping to the same set of stored bins, preserving input order.
-
-    A point request (lo == hi) picks the single nearest bin. A range request sums
-    every bin whose energy falls within [lo, hi], inclusive.
-    """
-    raw_indices = np.arange(len(axis))
-    if ordering == "Unshifted FFT":
-        raw_indices = np.fft.fftshift(raw_indices)
-    bins = {}
-    order = []
-    for lo, hi in requests:
-        if lo == hi:
-            axis_indices = (int(np.argmin(np.abs(axis - lo))),)
-        else:
-            axis_indices = tuple(i for i in range(len(axis)) if lo <= axis[i] <= hi)
-            if not axis_indices:
-                raise ValueError(f"No energy bins fall within {lo:g}-{hi:g} meV")
-        if axis_indices not in bins:
-            bins[axis_indices] = dict(
-                axis_indices=list(axis_indices),
-                energy_indices=[int(raw_indices[i]) for i in axis_indices],
-                bin_energies_mev=[float(axis[i]) for i in axis_indices],
-                requested=[])
-            order.append(axis_indices)
-        bins[axis_indices]["requested"].append([lo, hi])
-    return [bins[key] for key in order]
-
-
 def bin_title(entry):
     """Panel title for a bin entry: a single energy, or a summed range with its bin count."""
     energies = entry["bin_energies_mev"]
     if len(energies) == 1:
         return f"{energies[0]:.6g} meV"
     return f"{energies[0]:.6g}–{energies[-1]:.6g} meV ({len(energies)} bins)"
-
-
-def map_broadening_weights(axis, axis_index, sigma_mev):
-    """Gaussian kernel weights, by axis position, for broadening one map across nearby energy bins.
-
-    Reuses gaussian_broaden_spectrum on a one-hot vector so the reflect-boundary
-    and truncation behavior exactly matches spectrum broadening.
-    """
-    if sigma_mev <= 0:
-        return {axis_index: 1.0}
-    onehot = np.zeros(len(axis))
-    onehot[axis_index] = 1.0
-    weights = gaussian_broaden_spectrum(axis, onehot, sigma_mev)
-    return {int(i): float(weights[i]) for i in np.flatnonzero(weights)}
 
 
 @st.cache_data(show_spinner=False, max_entries=8)
@@ -140,17 +61,7 @@ def maps_png(scan_maps, titles, columns=3, color_limits=None, dpi=300):
 
 @st.cache_data(show_spinner=False, max_entries=8)
 def all_maps_npz_bytes(scan_maps, bins, base_metadata):
-    metadata = dict(base_metadata, axes=["energy_map", "probe_x", "probe_y"], maps=bins)
-    energies = [entry["bin_energies_mev"] for entry in bins]
-    buffer = io.BytesIO()
-    np.savez_compressed(buffer, scan_maps=np.stack(scan_maps),
-                        selected_energies_mev=np.array([float(np.mean(e)) for e in energies]),
-                        energy_lo_mev=np.array([e[0] for e in energies]),
-                        energy_hi_mev=np.array([e[-1] for e in energies]),
-                        bin_count=np.array([len(e) for e in energies]),
-                        metadata_json=np.array(json.dumps(metadata)))
-    return buffer.getvalue()
-
+    return _all_maps_npz_bytes(scan_maps, bins, base_metadata)
 
 
 def render_scan_map(infos, labels):
@@ -220,24 +131,16 @@ def render_scan_map(infos, labels):
         requests = parse_map_energies(energy_text)
         axis = energy_loss_axis_mev(info.shape[1], timestep, stride)
         bins = selected_map_bins(axis, requests, ordering)
-        raw_indices = np.arange(len(axis))
-        if ordering == "Unshifted FFT":
-            raw_indices = np.fft.fftshift(raw_indices)
         center = detector_center(info, *offsets)
         mask = circular_detector_mask(info.shape[-2:], center, radius)
 
-        def broadened_scan_map(entry):
-            total = None
-            for axis_index in entry["axis_indices"]:
-                for index, weight in map_broadening_weights(axis, axis_index, sigma_mev).items():
-                    contribution = weight * cached_scan_map(info, int(raw_indices[index]), dummy, radius, *offsets)
-                    total = contribution if total is None else total + contribution
-            return total
+        def read_map(raw_index):
+            return cached_scan_map(info, raw_index, dummy, radius, *offsets)
 
         with st.spinner("Summing the detector across probe rows at selected energies…"):
             # Each read reduces one energy slice to a small map before the next
             # energy is read. Only these reduced maps are kept in memory.
-            scan_maps = [broadened_scan_map(entry) for entry in bins]
+            scan_maps = [broadened_scan_map(entry, axis, ordering, sigma_mev, read_map) for entry in bins]
         if manual_scale:
             if manual_limits[0] >= manual_limits[1]:
                 st.error("Intensity min must be less than intensity max.")

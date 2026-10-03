@@ -2,7 +2,7 @@
 import numpy as np
 import pytest
 
-from background_area import integrate_area, symmetric_bounds, normalize_to_original
+from eels_studio.core.integration import integrate_area, symmetric_bounds, normalize_to_original
 
 
 def test_linear_curve_on_irregular_grid_with_interpolated_endpoints():

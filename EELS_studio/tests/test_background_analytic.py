@@ -6,10 +6,11 @@ import json
 import numpy as np
 import pytest
 
-from background_core import (ANALYTIC_MODELS, BACKGROUND_MODELS, BackgroundConfig, BackgroundState,
-    auto_segments_from_peaks, config_caption, default_analytic_segments, fit_background, input_fingerprints)
-from background_exports import background_csv, background_npz
-from background_view import preview_figure
+from eels_studio.core.background import ANALYTIC_MODELS, BACKGROUND_MODELS, BackgroundConfig, auto_segments_from_peaks, default_analytic_segments, fit_background
+from eels_studio.ui.state import BackgroundState, input_fingerprints
+from eels_studio.ui.plotting import config_caption
+from eels_studio.io.background_exports import background_csv, background_npz
+from eels_studio.ui.background_view import preview_figure
 
 ENERGY_FACTOR = 40.0
 

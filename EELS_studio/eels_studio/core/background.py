@@ -1,9 +1,6 @@
 """Pure 1D background fitting. Inputs are linear spectra after broadening."""
-from dataclasses import dataclass, field
-import hashlib
-import json
+from dataclasses import dataclass
 import warnings
-from typing import Callable
 
 import numpy as np
 import pybaselines
@@ -12,7 +9,6 @@ from pybaselines import Baseline
 from scipy.optimize import curve_fit
 from scipy.signal import find_peaks, peak_widths
 
-from eels_core import curve_identity_key
 
 MIN_FIT_BINS = 8
 CONFIDENCE_Z = 1.959964  # normal-approximation 95% CI half-width multiplier
@@ -369,17 +365,6 @@ def auto_segments_from_peaks(energy, intensity, n_segments, low, high, *,
     return sorted(gaps[:n_segments])
 
 
-def corrected_display(values, mode):
-    """Keep signed residuals in linear mode; leave gaps for nonpositive log data."""
-    values = np.asarray(values, dtype=float)
-    if mode != "log10":
-        return values.copy()
-    output = np.full_like(values, np.nan)
-    positive = np.isfinite(values) & (values > 0)
-    output[positive] = np.log10(values[positive])
-    return output
-
-
 def initial_bounds(curves):
     """Prefer common positive coverage with eight bins in every curve."""
     low = max(float(c["energy"][0]) for c in curves)
@@ -390,71 +375,3 @@ def initial_bounds(curves):
         if all(np.count_nonzero((c["energy"] >= positive_low) & (c["energy"] <= high)) >= MIN_FIT_BINS for c in curves):
             return positive_low, high
     return low, high  # If no valid common interval exists, explicit fitting validation explains it.
-
-
-def input_fingerprints(curves, settings, revisions):
-    """Labels, styles and view limits are deliberately excluded."""
-    processing = {k: v for k, v in settings.items() if k not in ("plot", "probe_positions_xy")}
-    result = {}
-    for curve in curves:
-        identity = curve_identity_key(curve)
-        digest = hashlib.sha256(json.dumps([identity, processing, revisions[curve["path"]]], sort_keys=True).encode())
-        for name in ("energy", "intensity"):
-            digest.update(np.asarray(curve[name], dtype="<f8").tobytes())
-        result[identity] = digest.hexdigest()
-    return result
-
-
-@dataclass
-class BackgroundState:
-    draft: BackgroundConfig | None = None
-    preview: BackgroundResult | None = None
-    preview_key: tuple | None = None
-    applied_config: BackgroundConfig | None = None
-    applied_results: dict[str, BackgroundResult] = field(default_factory=dict)
-    fingerprints: dict[str, str] = field(default_factory=dict)
-    source_revisions: dict[str, tuple[int, int]] = field(default_factory=dict)
-    signal: str = "Input"
-
-    def sync_inputs(self, fingerprints):
-        changed = self.fingerprints != fingerprints
-        if changed:
-            self.reset()
-            self.fingerprints = fingerprints.copy()
-        return changed
-
-    def reset(self):
-        self.preview = None
-        self.preview_key = None
-        self.applied_config = None
-        self.applied_results = {}
-        self.signal = "Input"
-
-    def apply(self, curves, config, fitter: Callable = fit_background):
-        results, failures = {}, {}
-        for curve in curves:
-            identity = curve_identity_key(curve)
-            try:
-                result = fitter(curve["energy"], curve["intensity"], config)
-                if not result.diagnostics.valid:
-                    failures[identity] = result.diagnostics.status
-                else:
-                    results[identity] = result
-            except (ValueError, RuntimeError, ArithmeticError, np.linalg.LinAlgError) as exc:
-                failures[identity] = str(exc)
-        if not failures:
-            self.applied_config, self.applied_results = config, results
-            self.signal = "Corrected"
-        return failures
-
-
-def config_caption(config):
-    stage = "intensity × E²" if config.intensity_mode == "energy_squared" else "linear intensity"
-    if config.method in ANALYTIC_MODELS:
-        segments = ", ".join(f"{lo:g}-{hi:g}" for lo, hi in config.segments)
-        return (f"{config.method} · segments [{segments}] meV (x/{config.energy_factor:g}) · "
-                f"{stage} after optional Gaussian broadening")
-    parameters = (f"log10(λ)={config.log10_lambda:g}, tol={config.tolerance:g}, max iterations={config.max_iterations}"
-                  if config.method == "arPLS" else f"half-window={config.half_window_mev:g} meV")
-    domain = "each full recorded domain" if config.domain == "full" else f"requested {config.energy_min:g}–{config.energy_max:g} meV"
-    return f"{config.method} · {parameters} · {domain} · {stage} after optional Gaussian broadening"

@@ -11,7 +11,7 @@ from pathlib import Path
 
 import numpy as np
 
-from scan_reader import ScanReader
+from eels_studio.io.scan_reader import ScanReader
 
 
 def resolve_data_directory(value):

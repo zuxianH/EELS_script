@@ -1,40 +1,8 @@
 """Notebook-compatible EELS extraction, independent of the user interface."""
-from dataclasses import dataclass
-from pathlib import Path
-import json
-import io
-import csv
-
-from scan_sources import open_scan_reader, scan_revision
+from eels_studio.io.scans import _open_scan
 
 import numpy as np
 from scipy.ndimage import gaussian_filter1d
-
-
-@dataclass(frozen=True)
-class ScanInfo:
-    path: str
-    shape: tuple[int, ...]
-    dtype: str
-    mtime_ns: int
-    size: int
-    revision: str = ""
-    chunks: tuple[int, ...] | None = None
-
-    @property
-    def canonical_shape(self):
-        if len(self.shape) == 3:
-            energy, px, py = self.shape
-            return (1, energy, 1, 1, px, py)
-        return self.shape
-
-
-def inspect_scan(path):
-    path = Path(path).expanduser().resolve()
-    scan = open_scan_reader(path)
-    mtime_ns, size, revision = scan_revision(path)
-    return ScanInfo(str(path), scan.shape, str(scan.dtype), mtime_ns, size,
-                    revision, getattr(scan, "chunks", None))
 
 
 def energy_loss_axis_mev(chunk, timestep_fs=2.5, stride=3):
@@ -124,10 +92,26 @@ def gaussian_broaden_spectrum(energy_mev, intensity, sigma_mev=0.0):
                              mode="reflect", truncate=4.0)
 
 
-def _open_scan(info):
-    if scan_revision(info.path) != (info.mtime_ns, info.size, info.revision):
-        raise ValueError("File changed on disk; refresh the file list")
-    return open_scan_reader(info.path)
+def process_spectrum(energy, intensity, *, unshifted=False, sigma_mev=0.0):
+    """Apply the application's energy ordering, then optional broadening."""
+    if unshifted:
+        intensity = np.fft.fftshift(intensity)
+    if sigma_mev > 0:
+        intensity = gaussian_broaden_spectrum(energy, intensity, sigma_mev)
+    return intensity
+
+
+def spectrum_from_tile(spectra, totals, finite, x, y, normalize):
+    """Select and optionally normalize one probe's reduced Zarr spectrum."""
+    result = spectra[:, x, y].copy()
+    if normalize:
+        total = totals[x, y]
+        if not finite[x, y] or not np.isfinite(total) or total == 0:
+            raise ValueError("Cannot normalize probe data with zero, NaN, infinite, or overflowed total intensity")
+        result /= total
+    if not np.isfinite(result).all():
+        raise ValueError("Selected detector data contains NaN, infinite, or overflowed intensities")
+    return result
 
 
 def _validate_index(name, value, length):
@@ -348,36 +332,3 @@ def process_angle_resolved(energy, intensity, *, unshifted=False, sigma_mev=0.0)
     if not np.isfinite(values).all():
         raise ValueError("Corrected map overflowed; check the input intensity")
     return values
-
-
-def display_intensity(values, mode):
-    if mode == "log10":
-        return np.log10(np.clip(values, np.finfo(float).tiny, None))
-    return values
-
-
-def curve_identity_key(curve):
-    """Stable identifier for a curve's source, independent of its display label."""
-    return json.dumps([curve["path"], curve["dummy"], curve["probe_x"], curve["probe_y"]])
-
-
-def export_csv(curves):
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow(["label", "source_file", "dummy", "probe_x", "probe_y", "energy_meV", "intensity"])
-    for curve in curves:
-        for energy, intensity in zip(curve["energy"], curve["intensity"]):
-            writer.writerow([curve["label"], curve["path"], curve["dummy"], curve["probe_x"],
-                             curve["probe_y"], energy, intensity])
-    return output.getvalue().encode("utf-8")
-
-
-def export_npz(curves, settings):
-    arrays = {f"curve_{i:03d}": np.column_stack((c["energy"], c["intensity"])) for i, c in enumerate(curves)}
-    metadata = {"settings": settings, "curves": [
-        {k: v for k, v in c.items() if k not in ("energy", "intensity")} for c in curves
-    ]}
-    arrays["metadata_json"] = np.array(json.dumps(metadata))
-    output = io.BytesIO()
-    np.savez_compressed(output, **arrays)
-    return output.getvalue()

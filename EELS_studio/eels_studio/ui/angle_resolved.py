@@ -1,60 +1,23 @@
 """Box-selected energy-versus-detector-pixel maps for the Streamlit app."""
-from pathlib import Path
 import io
 import json
 
-import matplotlib.pyplot as plt
+from eels_studio.ui.plotting import plt, go
 import numpy as np
-import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v2 as components
 
-from eels_core import (
-    curve_identity_key, extract_angle_resolved, nearest_energy_index, process_angle_resolved,
-    rectangle_from_plot,
-)
-from cache_layer import cached_diffraction_pattern, PNG_DPI_OPTIONS
-
-# Read once at import time rather than on every Streamlit rerun.
-_RECTANGLE_SELECT_JS = Path(__file__).with_name("rectangle_select.js").read_text()
+from eels_studio.core.identity import curve_identity_key
+from eels_studio.core.spectra import extract_angle_resolved, nearest_energy_index, process_angle_resolved
+from eels_studio.core.display import map_display
+from eels_studio.ui.components.rectangle_select import register_rectangle_select, receive_rectangle
+from eels_studio.io.map_exports import export_map as _export_map
+from eels_studio.ui.cache_layer import cached_diffraction_pattern, PNG_DPI_OPTIONS
 
 
 @st.cache_data(show_spinner=False, max_entries=16)
 def cached_map(info, bounds, retain_axis, dummy, probe_x, probe_y, normalize):
     return extract_angle_resolved(info, bounds, retain_axis=retain_axis, dummy=dummy,
                                   probe_x=probe_x, probe_y=probe_y, normalize_3d=normalize)
-
-
-def receive_rectangle():
-    event = st.session_state.get("angle_rectangle", {}).get("selected")
-    context = st.session_state.get("angle_rectangle_context")
-    if not event or not context or event.get("preview_id") != context["preview_id"]:
-        return
-    try:
-        bounds = rectangle_from_plot(context["shape"], event["x0"], event["x1"],
-                                     event["y0"], event["y1"])
-        for key, value in zip(context["bound_keys"], bounds):
-            st.session_state[key] = value
-    except (KeyError, TypeError, ValueError) as exc:
-        st.session_state["angle_rectangle_error"] = str(exc)
-
-
-@st.cache_data(show_spinner=False, max_entries=16)
-def export_map(energy, pixels, intensity, metadata):
-    output = io.BytesIO()
-    np.savez_compressed(output, energy_mev=energy, pixel_offset=pixels, intensity=intensity,
-                        metadata_json=np.array(json.dumps(metadata)))
-    return output.getvalue()
-
-
-def map_display(intensity, logarithmic):
-    if not logarithmic:
-        return intensity
-    # Mask nonpositive bins so zeros do not stretch the log color range to -308.
-    result = np.full(intensity.shape, np.nan)
-    positive = intensity > 0
-    result[positive] = np.log10(intensity[positive])
-    return result
 
 
 @st.cache_data(show_spinner=False, max_entries=4)
@@ -77,6 +40,11 @@ def map_figures(energy, pixels, shown, title, xlabel, color_label, energy_limits
         result[extension] = output.getvalue()
     plt.close(figure)
     return result
+
+
+@st.cache_data(show_spinner=False, max_entries=16)
+def export_map(energy, pixels, intensity, metadata):
+    return _export_map(energy, pixels, intensity, metadata)
 
 
 def render_angle_resolved(curves, scans, settings):
@@ -179,7 +147,7 @@ def render_angle_resolved(curves, scans, settings):
         preview_id = json.dumps([selected, info.mtime_ns, info.revision, shape, raw_index])
         st.session_state["angle_rectangle_context"] = dict(preview_id=preview_id, shape=shape,
                                                            bound_keys=bound_keys)
-        bridge = components.component("eels_angle_rectangle", js=_RECTANGLE_SELECT_JS)
+        bridge = register_rectangle_select()
         revision = st.session_state.get("angle_rectangle_revision", 0) + 1
         st.session_state["angle_rectangle_revision"] = revision
         bridge(key="angle_rectangle", data=dict(preview_id=preview_id, revision=revision),

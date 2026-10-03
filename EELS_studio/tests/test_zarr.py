@@ -7,9 +7,10 @@ import numpy as np
 import pytest
 import zarr
 
-from eels_core import (detector_scan_map, diffraction_pattern, export_npz,
-                       extract_angle_resolved, extract_spectrum, inspect_scan)
-from scan_sources import ZarrScanReader, discover_scans, scan_revision
+from eels_studio.core.spectra import detector_scan_map, diffraction_pattern, extract_angle_resolved, extract_spectrum
+from eels_studio.io.spectra_exports import export_npz
+from eels_studio.io.scans import inspect_scan
+from eels_studio.io.scan_sources import ZarrScanReader, discover_scans, scan_revision
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -159,7 +160,7 @@ def test_app_mixed_sources_direct_store_and_refresh(tmp_path):
     store = tmp_path / 'b.zarray'
     array = save_zarr(store, data, (1, 4, 1, 2, 3, 4))
     np.save(tmp_path / 'a.npy', data)
-    with patch('eels_core.export_npz', wraps=export_npz) as exported:
+    with patch('eels_studio.io.spectra_exports.export_npz', wraps=export_npz) as exported:
         app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=45).run()
         app.text_input(key='data_folder').set_value(str(tmp_path)).run()
         assert not app.exception and not app.error

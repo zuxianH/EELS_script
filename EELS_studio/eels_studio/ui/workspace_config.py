@@ -6,7 +6,7 @@ import re
 
 import streamlit as st
 
-from background_core import BACKGROUND_MODELS, BackgroundConfig
+from eels_studio.core.background import BACKGROUND_MODELS, BackgroundConfig
 
 FORMAT = "eels-studio-workspace"
 VERSION = 1

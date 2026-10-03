@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-import file_order
+import eels_studio.ui.components.file_order as file_order
 
 
 def test_reorder_preserves_detector_probe_and_rejects_stale_selection():

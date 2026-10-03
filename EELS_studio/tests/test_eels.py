@@ -6,11 +6,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eels_core import (
-    circular_detector_mask, diffraction_pattern, energy_loss_axis_mev,
-    detector_offsets_from_click, export_csv, export_npz, extract_spectrum,
-    gaussian_broaden_spectrum, inspect_scan,
-)
+from eels_studio.core.spectra import circular_detector_mask, diffraction_pattern, energy_loss_axis_mev, detector_offsets_from_click, extract_spectrum, gaussian_broaden_spectrum
+from eels_studio.io.spectra_exports import export_csv, export_npz
+from eels_studio.io.scans import inspect_scan
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -208,7 +206,7 @@ def test_app_six_dimensional_files(tmp_path):
 
     for name, shape in [("a", (2, 7, 3, 2, 9, 8)), ("b", (2, 6, 2, 2, 9, 8))]:
         np.save(tmp_path / f"{name}.npy", np.random.default_rng(2).uniform(1, 2, shape))
-    with patch("eels_core.export_npz", wraps=export_npz) as exported:
+    with patch("eels_studio.io.spectra_exports.export_npz", wraps=export_npz) as exported:
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
         assert not app.exception and not app.error
@@ -263,7 +261,7 @@ def test_app_gaussian_broadening_processing_and_exports(tmp_path):
     from unittest.mock import patch
 
     np.save(tmp_path / "scan.npy", np.arange(1, 22, dtype=float).reshape(1, 21, 1, 1, 1, 1))
-    with patch("eels_core.export_npz", wraps=export_npz) as exported:
+    with patch("eels_studio.io.spectra_exports.export_npz", wraps=export_npz) as exported:
         app = AppTest.from_file(str(ROOT / "app.py"), default_timeout=45).run()
         next(w for w in app.text_input if w.label == "Data folder").set_value(str(tmp_path)).run()
         assert not app.exception and not app.error

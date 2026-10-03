@@ -2,7 +2,7 @@
 __pycache__/
 .pytest_cache/
 *.pyc
-core
+/core
 .DS_Store
 .streamlit/secrets.toml
 STEM-EELS.ipynb

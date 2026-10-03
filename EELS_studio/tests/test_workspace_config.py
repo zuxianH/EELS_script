@@ -9,7 +9,7 @@ from unittest.mock import patch
 import numpy as np
 from streamlit.testing.v1 import AppTest
 
-import workspace_config as config
+import eels_studio.ui.workspace_config as config
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -45,7 +45,8 @@ class ConfigFormatTests(unittest.TestCase):
         self.assertNotIn('detector_click', decoded['settings'])
 
     def test_weighted_background_config_and_legacy_log_display(self):
-        from background_core import BackgroundConfig, BackgroundState
+        from eels_studio.core.background import BackgroundConfig
+        from eels_studio.ui.state import BackgroundState
 
         background = BackgroundState(applied_config=BackgroundConfig(intensity_mode='energy_squared'))
         saved = config.encode_config({'bg_display': 'Intensity × E²', 'background_state': background})
@@ -113,7 +114,7 @@ class WorkspaceAppTests(unittest.TestCase):
         self.assertFalse(app.error, str(app.error))
 
     def test_file_order_preserves_styles_preview_and_saved_config(self):
-        from file_order import apply_file_order
+        from eels_studio.ui.components.file_order import apply_file_order
 
         app = self.open_scans()
         a, b = str(self.folder / 'a.npy'), str(self.folder / 'b.npy')
@@ -122,7 +123,7 @@ class WorkspaceAppTests(unittest.TestCase):
         widget(app, 'color_picker', 'Line color').set_value('#abcdef').run()
         styles = dict(app.session_state['curve_styles'])
         state = dict(app.session_state)
-        with patch('file_order.st.session_state', state):
+        with patch('eels_studio.ui.components.file_order.st.session_state', state):
             apply_file_order(f'files:{self.folder}', [b, a])
         app.session_state[f'files:{self.folder}'] = state[f'files:{self.folder}']
         app.session_state['preview_index'] = state['preview_index']
