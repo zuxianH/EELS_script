@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "record_id": "5603c5dfc0544e1ea8797615f0adc70c",
+  "task_id": "workflow-bootstrap",
+  "project": "eels-script",
+  "site": "local",
+  "authoring_tool": "codex",
+  "code_revision": "e7a73d27dd37bbd2aa3f86b606fa87b52ef428e4",
+  "created_at": "2026-10-21T19:05:18.089273+00:00",
+  "status": "observed",
+  "scope": "This repository and noninteractive SSH access in the setup session on 2026-10-21",
+  "claim": "Local inventory found existing TACAW site templates; both configured cluster SSH probes rejected authentication. The actual MD shutdown regression was not accessible.",
+  "evidence": [
+    "research-workflow/docs/inventory-2026-10-21.md",
+    "git:e7a73d2"
+  ],
+  "criterion": "",
+  "next_action": "Complete local bootstrap checks; obtain the actual LUMI and Dardel scripts and explicit budgets before runner or scheduler changes.",
+  "kind": "inventory",
+  "failed_attempts": [
+    "LUMI SSH authentication rejected",
+    "Dardel SSH authentication rejected"
+  ],
+  "job_ids": []
+}

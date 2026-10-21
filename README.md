@@ -1,5 +1,10 @@
 # EELS scripts
 
+The [research workflow](research-workflow/README.md) provides shared Codex/Claude
+instructions, isolated task worktrees, checkpoints and handovers. Start with
+`./rw status`. Cluster validation and deployment are pending authenticated
+inventory; the existing Studio and simulation entry points are unchanged.
+
 Tools for preparing molecular-dynamics trajectories, running a GPU TACAW
 calculation, and correcting its output.
 

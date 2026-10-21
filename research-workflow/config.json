@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "project": "eels-script",
+  "knowledge_path": "research-knowledge",
+  "sites": {
+    "local": {"scheduler": "local", "execution_enabled": false, "active_release": null},
+    "lumi": {"scheduler": "slurm", "ssh_alias": "lumi", "execution_enabled": false, "active_release": null, "verification_budget": null},
+    "dardel": {"scheduler": "slurm", "ssh_alias": "dardel", "execution_enabled": false, "active_release": null, "verification_budget": null}
+  },
+  "automation": {
+    "cluster_submission_enabled": false,
+    "production_submission_enabled": false,
+    "promotion_enabled": false,
+    "reason": "Phase A remote inventory is blocked by SSH authentication; no verification budgets or validated releases exist."
+  }
+}

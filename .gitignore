@@ -11,3 +11,23 @@ __pycache__/
 *.npy
 *.npz
 *.zarr/
+
+# Workflow machine state and research data stay on the originating machine.
+.rw-state/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.sif
+*.ckpt
+*.pt
+*.pth
+*.h5
+*.hdf5
+*.dcd
+*.xtc
+*.trr
+*.log
+*.restart
+restart.*
