@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--dt-ps", type=float, default=0.001)
     parser.add_argument("--equil-steps", type=positive_int, default=10000)
     parser.add_argument("--prod-steps", type=positive_int, default=10000)
-    parser.add_argument("--dump-every", type=positive_int, default=10)
+    parser.add_argument("--dump-every", type=positive_int, default=5)
     parser.add_argument("--equil-dump-every", type=positive_int, default=1000)
     parser.add_argument("--seed", type=positive_int, default=299792458)
     parser.add_argument("--ftol", type=float, default=1e-6)

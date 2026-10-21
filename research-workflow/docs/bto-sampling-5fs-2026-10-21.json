@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-21T20:50:17.672059+00:00",
+  "task_id": "bto-sampling-5fs",
+  "site": "arrhenius",
+  "recording_baseline_commit": "f6e31a772e7bf82bfe0e3c275416465b0dbb45a5",
+  "user_decision": "Match 5 fs saved production frames; retain 1 fs integration and 10 ps equilibration + 10 ps production.",
+  "reference": {
+    "alias": "2026_BTO/lmp_nve_langevin.in",
+    "sha256": "e90a9d2551f622e128a187724042727f1247c9189ecf9d0f048c3da1cc531c4b",
+    "integration_timestep_ps": 0.001,
+    "dump_every_steps": 5,
+    "modified": false,
+    "long_restart_dependent_target_adopted": false
+  },
+  "current_defaults": {
+    "integration_timestep_ps": 0.001,
+    "equilibration_steps": 10000,
+    "production_steps": 10000,
+    "production_dump_every_steps": 5,
+    "frame_interval_ps": 0.005,
+    "production_frames_including_step_zero": 2001,
+    "sparse_equilibration_dump_every_steps": 1000
+  },
+  "canonical_source_sha256": {
+    "research-workflow/experiments/bto-single-domain/.gitignore": "f187de77acec61c735cc2ffdd1fc6cac3db2c3e4c4a785571c3ed48043116dfa",
+    "research-workflow/experiments/bto-single-domain/README.md": "5171adb433a8d7bcfe2b902e7702025574ede2e0a4e17049df7270d7c1c02306",
+    "research-workflow/experiments/bto-single-domain/env.sh": "c610e2105477d33d3253f491a07b59970172176f64c4b77796050af418751098",
+    "research-workflow/experiments/bto-single-domain/install_deepmd.sh": "58b46baeefce21ea696dd657bdf11d9a1329168703d58bdfa95dad2363fd1096",
+    "research-workflow/experiments/bto-single-domain/lmp_minimize.in": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+    "research-workflow/experiments/bto-single-domain/lmp_nvt.in": "5fcaeb8590ff81de59bb3a7985d61b32a8e1c301ad65ab947223a9e2fd2762f4",
+    "research-workflow/experiments/bto-single-domain/requirements-runtime.lock": "976fdff0b532fd7717e789e83fd8ce24a1f45fa03841c0be7765de5b7aeba644",
+    "research-workflow/experiments/bto-single-domain/run_workflow.py": "cbc62209b67da93dcc98056289c5f4eafc450155ad1d31e953db796106f57846",
+    "research-workflow/experiments/bto-single-domain/submit_arrhenius.slurm": "0ca0c23b95a60fab478b9f08424280bf1e30f76f78c3ccc789c8060eb554c2cc",
+    "research-workflow/experiments/bto-single-domain/test_trajectory_tools.py": "18c8693203934e27698578bd2b2b7ac8462b6f6aaa0095c8d675f524aa0b66cb",
+    "research-workflow/experiments/bto-single-domain/trajectory_tools.py": "01901cbed8386483a9e924d2d27e3730be336d34252c75e6560fb29048e77cae"
+  },
+  "local_source_sha256": {
+    "BTO_WORKDIR/lmp_nvt.in": "5fcaeb8590ff81de59bb3a7985d61b32a8e1c301ad65ab947223a9e2fd2762f4",
+    "BTO_WORKDIR/run_workflow.py": "cbc62209b67da93dcc98056289c5f4eafc450155ad1d31e953db796106f57846",
+    "BTO_WORKDIR/README_workflow.txt": "676e7fd58422295a996f7c6d38d5a48ee920b80cc10ec8d9faa437035ae73b05"
+  },
+  "historical_evidence": "Original 10 fs cluster trajectories and external evidence digests match the original manifest. That manifest identifies the earlier snapshot; current output-frequency hashes are recorded here.",
+  "previous_evidence_record": "research-workflow/docs/bto-single-domain-arrhenius-2026-10-21.json",
+  "checks": [
+    "15 workflow contract tests passed",
+    "6 BTO regression tests passed",
+    "Local and versioned input/runner defaults match; the only input/runner edits are the dump-frequency defaults",
+    "Synthetic step 0/5/10 ASE conversion yields time_ps 0/0.005/0.01 and 0.005 ps frame spacing",
+    "All original external evidence hashes remain unchanged"
+  ],
+  "cluster_jobs_submitted": 0,
+  "scope": "Local configuration and timing/export validation only; no new dynamics, domain-stability or spectral-convergence claim.",
+  "corrected_edit_attempt": "Initial multi-file patch had a stale documentation context and applied no changes; inspected files and reapplied against current context."
+}

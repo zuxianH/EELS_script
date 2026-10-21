@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "task_id": "bto-sampling-5fs",
+  "project": "eels-script",
+  "goal": "Match BTO production sampling to the reference every five 1-fs integration steps while retaining 10 ps equilibration and 10 ps production; update local and preserved scripts and append evidence without changing historical trajectories or job records.",
+  "site": "arrhenius",
+  "baseline_commit": "f6e31a772e7bf82bfe0e3c275416465b0dbb45a5",
+  "created_at": "2026-10-21T20:48:30.791794+00:00"
+}

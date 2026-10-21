@@ -11,6 +11,12 @@ their scientific inputs and analysis code. The environment-location defaults
 and submission template were adapted for portability and checked locally;
 the portable Slurm template has not been cluster submitted.
 
+The later [5 fs sampling update](../../docs/bto-sampling-5fs-2026-10-21.json)
+changes production output frequency while retaining 1 fs integration and
+10 ps equilibration + 10 ps production. The original evidence manifest refers
+to the earlier snapshot and its 10 fs test trajectories; use the update's
+fingerprints for the current sampling defaults.
+
 ## Environment and local evidence
 
 `BTO_WORKDIR` denotes the original local `LAMMPS/BTO` working directory,
@@ -42,7 +48,9 @@ selects CPU operation. No private key or system installation is included.
 - `lmp_nvt.in`: read the minimized cell; replicate 10 x 10 x 50 (25,000 atoms);
   assign 300 K velocities; run NVT with every coordinate free. The default
   integration step is 1 fs, equilibration 10 ps, production 10 ps, saved interval
-  10 fs. Durations are provisional and need convergence checks.
+  5 fs (every five steps; 2001 production frames including step zero).
+  Sparse equilibration snapshots remain every 1 ps. Durations are provisional
+  and need convergence checks.
 - `run_workflow.py`: record model/runtime metadata, refuse existing output,
   check the physical final force and +x seed displacement, and run domain
   analysis. Physics stays in these experiment inputs, outside site profiles.
@@ -93,9 +101,11 @@ python trajectory_tools.py convert results/single_domain_300K/nvt/production.lam
   results/single_domain_300K/production.traj --dt-ps 0.001
 ```
 
-Downstream spectra must use the saved frame interval, default 10 fs, rather
+Downstream spectra must use the saved frame interval, default 5 fs, rather
 than the 1 fs integration step. Actual exported XYZ was also checked against
 the existing `EELS_script/trajectories/convert_xyz_traj.py` reader.
+That original converter check used 10 fs test output. Existing trajectories
+retain their own timing; changing defaults does not change those files.
 
 ## Evidence limits
 

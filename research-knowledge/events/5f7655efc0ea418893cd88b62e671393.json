@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_id": "5f7655efc0ea418893cd88b62e671393",
+  "task_id": "bto-sampling-5fs",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "f6e31a772e7bf82bfe0e3c275416465b0dbb45a5",
+  "created_at": "2026-10-21T20:50:17.820129+00:00",
+  "status": "verified",
+  "scope": "Local configuration and synthetic timing/export validation; no cluster job submitted.",
+  "claim": "Both local and preserved BTO workflows now save production every five 1-fs steps while retaining 10 ps equilibration and 10 ps production; 5 fs export timing is checked and historical 10 fs evidence is intact.",
+  "evidence": [
+    "research-workflow/docs/bto-sampling-5fs-2026-10-21.json"
+  ],
+  "criterion": "Input and runner defaults agree in both locations, their only executable changes are dump-frequency defaults, 21 regressions pass, synthetic ASE times are 0/0.005/0.01 ps, and original evidence hashes are unchanged.",
+  "next_action": "Commit and integrate the update; use 5 fs between frames for new production spectra while retaining original timing for existing trajectories."
+}

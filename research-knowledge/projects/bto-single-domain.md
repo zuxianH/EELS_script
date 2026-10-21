@@ -62,3 +62,12 @@ investigate the model, volume, temperature and sampling; changing constraints
 changes the dynamics and must be treated as a separate experiment. Establish
 integration-step, saved-interval and window convergence for the intended
 spectrum, and confirm the experimental reference definition.
+
+## Current production sampling
+
+The user subsequently selected output every five integration steps: **5 fs
+between production frames**, retaining **1 fs integration and 10 ps + 10 ps**.
+This yields 2001 production frames including step zero. The original cluster
+checks above remain historical 10 fs output checks. See the append-only
+[sampling update](../../research-workflow/docs/bto-sampling-5fs-2026-10-21.json)
+for current code hashes and local timing verification; no new job was submitted.
