@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_id": "ec3f88e020404ddab11349d36655f3dd",
+  "task_id": "bto-long-nvt",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "2a569d5ed025bcb649abf7c95911820d1f2d7952",
+  "created_at": "2026-10-21T21:18:15.852131+00:00",
+  "status": "observed",
+  "scope": "Scheduler submission evidence only; production completion and domain stability unverified",
+  "claim": "Submitted the user-authorized 415 ps production chain: jobs 4215841 through 4215849, each 16 CPU threads, 40 GB and 60 hours, with frozen tested inputs and afterok dependencies.",
+  "evidence": [
+    "research-workflow/docs/bto-long-nvt-submission-2026-10-21.json"
+  ],
+  "criterion": "",
+  "next_action": "Monitor job 4215841; inspect temperature, energy, stress and spatial Ti order as data accumulate; resume from 1 ps checkpoints if a segment fails."
+}

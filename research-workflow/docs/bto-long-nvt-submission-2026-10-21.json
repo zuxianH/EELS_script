@@ -1,0 +1,80 @@
+{
+  "code_revision": "2a569d5ed025bcb649abf7c95911820d1f2d7952",
+  "state_at_submission": "First job queued; successors waiting on afterok dependencies",
+  "jobs": [
+    {
+      "job_id": "4215841",
+      "until_step": 50000,
+      "depends_afterok": null
+    },
+    {
+      "job_id": "4215842",
+      "until_step": 100000,
+      "depends_afterok": "4215841"
+    },
+    {
+      "job_id": "4215843",
+      "until_step": 150000,
+      "depends_afterok": "4215842"
+    },
+    {
+      "job_id": "4215844",
+      "until_step": 200000,
+      "depends_afterok": "4215843"
+    },
+    {
+      "job_id": "4215845",
+      "until_step": 250000,
+      "depends_afterok": "4215844"
+    },
+    {
+      "job_id": "4215846",
+      "until_step": 300000,
+      "depends_afterok": "4215845"
+    },
+    {
+      "job_id": "4215847",
+      "until_step": 350000,
+      "depends_afterok": "4215846"
+    },
+    {
+      "job_id": "4215848",
+      "until_step": 400000,
+      "depends_afterok": "4215847"
+    },
+    {
+      "job_id": "4215849",
+      "until_step": 415000,
+      "depends_afterok": "4215848"
+    }
+  ],
+  "run_ref": "BTO_WORKDIR/results/single_domain_300K_415ps",
+  "run_manifest_sha256": "7b6419540400d726f6e643bcfddfa474338eae9d9843a881aadcdf738499c2c2",
+  "source_hashes": {
+    "model.pb": "9d9c070bc34b362c4bdb71bc8090300ed59abccbe88bf7108d7119fce8a422d6",
+    "minimized_cell.data": "44da78bbf377f004d8c08e53e3ee58ab69e61e874e1a010c13a83b8b847f6113",
+    "source/segmented_nvt.py": "8bd3d441d145c694ad6369473c9f8fa5ca75c23dfd800911586b4a5904d42c3d",
+    "source/lmp_segment.in": "fa97885a31655ab4649b17398946ccd3f44c65643206806ed05a87f8556572e3",
+    "source/submit_segment.slurm": "f8f61346868a70bcbc9a7149ae682929644fee5f5400a36adfa0607e7a26f115"
+  },
+  "seed_ref": "BTO_WORKDIR/validation/minimization_cpu/minimized_cell.data",
+  "resources": {
+    "cpus_per_task": 16,
+    "memory_GB": 40,
+    "hours_per_job": 60
+  },
+  "trajectory": {
+    "equil_steps": 10000,
+    "prod_steps": 405000,
+    "dt_ps": 0.001,
+    "dump_every": 5,
+    "production_frames": 81001,
+    "checkpoint_every": 1000
+  },
+  "restart_check_job": "4215716",
+  "restart_check_result": "COMPLETED 0:0; split/uninterrupted positions and velocities agree exactly at 11 saved frames",
+  "limitations": [
+    "Production completion, domain order and spectral convergence not yet established",
+    "Timeout requires retry of failed segment and replacement of its downstream afterok dependency chain"
+  ]
+}
