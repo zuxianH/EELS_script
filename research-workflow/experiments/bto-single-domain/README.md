@@ -11,11 +11,13 @@ their scientific inputs and analysis code. The environment-location defaults
 and submission template were adapted for portability and checked locally;
 the portable Slurm template has not been cluster submitted.
 
-The later [5 fs sampling update](../../docs/bto-sampling-5fs-2026-10-21.json)
-changes production output frequency while retaining 1 fs integration and
-10 ps equilibration + 10 ps production. The original evidence manifest refers
-to the earlier snapshot and its 10 fs test trajectories; use the update's
-fingerprints for the current sampling defaults.
+The [5 fs sampling update](../../docs/bto-sampling-5fs-2026-10-21.json)
+changed production output frequency, initially retaining 10 ps + 10 ps.
+The subsequent [50 ps total duration update](../../docs/bto-duration-50ps-2026-10-21.json)
+sets **10 ps equilibration + 40 ps production**, retaining 1 fs integration
+and 5 fs production sampling. Use that latest update's source fingerprints
+for current defaults. Earlier manifests retain their original snapshots and
+historical 10 fs cluster-test evidence.
 
 ## Environment and local evidence
 
@@ -47,8 +49,8 @@ selects CPU operation. No private key or system installation is included.
   symmetry-restricted 0 K preparation, not a 300 K zero-pressure cell.
 - `lmp_nvt.in`: read the minimized cell; replicate 10 x 10 x 50 (25,000 atoms);
   assign 300 K velocities; run NVT with every coordinate free. The default
-  integration step is 1 fs, equilibration 10 ps, production 10 ps, saved interval
-  5 fs (every five steps; 2001 production frames including step zero).
+  integration step is 1 fs, equilibration 10 ps, production 40 ps, saved interval
+  5 fs (every five steps; 8001 production frames including step zero).
   Sparse equilibration snapshots remain every 1 ps. Durations are provisional
   and need convergence checks.
 - `run_workflow.py`: record model/runtime metadata, refuse existing output,
@@ -85,9 +87,10 @@ sbatch --account=YOUR_CPU_ACCOUNT submit_arrhenius.slurm \
   --output results/single_domain_300K
 ```
 
-The template requests one task, 16 CPU threads, 40 GB RAM and 36 hours on `cpu`.
-The original 25,000-atom check measured 3.449 s/step; the default 20,000 MD
-steps therefore suggest about 19–20 hours before variability and I/O. This
+The template requests one task, 16 CPU threads, 40 GB RAM and 60 hours on `cpu`.
+The original 25,000-atom check measured 3.449 s/step; the default 50,000 MD
+steps therefore suggest about 48 hours before variability and I/O. The observed
+CPU partition limit is 72 hours. This
 estimate does not validate the portable template or scientific convergence.
 Submission requires a separate explicit production request; these records do
 not authorize execution. `rw` itself has no submission capability.

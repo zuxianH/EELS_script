@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "record_id": "048956ef448a4982b44a93a53751b35e",
+  "task_id": "bto-duration-50ps",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "d6002c07ddebae76b67144221c455ea6a6152cbd",
+  "created_at": "2026-10-21T20:52:41.267408+00:00",
+  "status": "observed",
+  "scope": "This project and source revision only",
+  "claim": "Created an isolated task worktree",
+  "evidence": [
+    "git:d6002c07ddebae76b67144221c455ea6a6152cbd"
+  ],
+  "criterion": "",
+  "next_action": "Implement the recorded task goal",
+  "kind": "task_started"
+}

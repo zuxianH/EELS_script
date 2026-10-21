@@ -4,7 +4,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=40G
-#SBATCH --time=1-12:00:00
+#SBATCH --time=2-12:00:00
 #SBATCH --output=bto-%j.out
 
 # One MPI task using the wheel's matched MPICH; TF/OpenMP uses the allocated

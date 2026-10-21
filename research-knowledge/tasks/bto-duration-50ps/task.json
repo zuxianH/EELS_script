@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "task_id": "bto-duration-50ps",
+  "project": "eels-script",
+  "goal": "Set total BTO NVT duration to 50 ps using 10 ps equilibration plus 40 ps production, retaining 1 fs integration and 5 fs output; update both script copies, matching walltime and append-only evidence without submitting jobs.",
+  "site": "arrhenius",
+  "baseline_commit": "d6002c07ddebae76b67144221c455ea6a6152cbd",
+  "created_at": "2026-10-21T20:52:41.262931+00:00"
+}

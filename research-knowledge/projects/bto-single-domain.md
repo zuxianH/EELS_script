@@ -65,9 +65,10 @@ spectrum, and confirm the experimental reference definition.
 
 ## Current production sampling
 
-The user subsequently selected output every five integration steps: **5 fs
-between production frames**, retaining **1 fs integration and 10 ps + 10 ps**.
-This yields 2001 production frames including step zero. The original cluster
-checks above remain historical 10 fs output checks. See the append-only
-[sampling update](../../research-workflow/docs/bto-sampling-5fs-2026-10-21.json)
-for current code hashes and local timing verification; no new job was submitted.
+The user selected output every five integration steps: **5 fs between production
+frames**, retaining **1 fs integration**. The later duration choice is **50 ps
+total: 10 ps equilibration + 40 ps production**. This yields 8001 production
+frames including step zero. The original cluster checks above remain historical
+10 fs output checks. The append-only [sampling update](../../research-workflow/docs/bto-sampling-5fs-2026-10-21.json)
+records the earlier 10+10 ps configuration; the [duration update](../../research-workflow/docs/bto-duration-50ps-2026-10-21.json)
+provides current source hashes and local verification. No new job was submitted.

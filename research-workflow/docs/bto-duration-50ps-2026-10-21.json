@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-21T20:54:00.029904+00:00",
+  "task_id": "bto-duration-50ps",
+  "site": "arrhenius",
+  "recording_baseline_commit": "d6002c07ddebae76b67144221c455ea6a6152cbd",
+  "user_decision": "50 ps total: keep 10 ps equilibration and use 40 ps production.",
+  "current_defaults": {
+    "dt_ps": 0.001,
+    "equilibration_steps": 10000,
+    "production_steps": 40000,
+    "total_steps": 50000,
+    "equilibration_ps": 10,
+    "production_ps": 40,
+    "total_ps": 50,
+    "dump_every_steps": 5,
+    "saved_frame_interval_ps": 0.005,
+    "production_frames_including_step_zero": 8001
+  },
+  "resources": {
+    "cpu_threads": 16,
+    "memory_GB": 40,
+    "requested_walltime_hours": 60,
+    "observed_cpu_partition_limit_hours": 72,
+    "measured_seconds_per_step": 3.449035,
+    "estimated_MD_wall_hours": 47.90326388888889,
+    "estimate_scope": "Extrapolation from original short CPU benchmark; additional I/O and variability not guaranteed."
+  },
+  "canonical_source_sha256": {
+    "research-workflow/experiments/bto-single-domain/.gitignore": "f187de77acec61c735cc2ffdd1fc6cac3db2c3e4c4a785571c3ed48043116dfa",
+    "research-workflow/experiments/bto-single-domain/README.md": "2795fa81b19ac80e7b63af16c2d14f3e104484f7491d30a51fe69f2ae79156f3",
+    "research-workflow/experiments/bto-single-domain/env.sh": "c610e2105477d33d3253f491a07b59970172176f64c4b77796050af418751098",
+    "research-workflow/experiments/bto-single-domain/install_deepmd.sh": "58b46baeefce21ea696dd657bdf11d9a1329168703d58bdfa95dad2363fd1096",
+    "research-workflow/experiments/bto-single-domain/lmp_minimize.in": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+    "research-workflow/experiments/bto-single-domain/lmp_nvt.in": "3d22784efa235b37552be60c323cb80d70247e1beb099ecf8f7a469ad51b0f73",
+    "research-workflow/experiments/bto-single-domain/requirements-runtime.lock": "976fdff0b532fd7717e789e83fd8ce24a1f45fa03841c0be7765de5b7aeba644",
+    "research-workflow/experiments/bto-single-domain/run_workflow.py": "3826edc7e0eb6867de2aaa48715a4a196223b7f17c7da8fa058da8ba18f7fff9",
+    "research-workflow/experiments/bto-single-domain/submit_arrhenius.slurm": "eb0b6eb651e397ed0dac838fda5188e6952c2e1aff067b8ca03d4bad7037ae54",
+    "research-workflow/experiments/bto-single-domain/test_trajectory_tools.py": "18c8693203934e27698578bd2b2b7ac8462b6f6aaa0095c8d675f524aa0b66cb",
+    "research-workflow/experiments/bto-single-domain/trajectory_tools.py": "01901cbed8386483a9e924d2d27e3730be336d34252c75e6560fb29048e77cae"
+  },
+  "local_source_sha256": {
+    "BTO_WORKDIR/lmp_nvt.in": "3d22784efa235b37552be60c323cb80d70247e1beb099ecf8f7a469ad51b0f73",
+    "BTO_WORKDIR/run_workflow.py": "3826edc7e0eb6867de2aaa48715a4a196223b7f17c7da8fa058da8ba18f7fff9",
+    "BTO_WORKDIR/submit_bto.slurm": "2cd4824f1afff0cc2912771b29cb945dc78e177b1f79fb61042d029122ff7453",
+    "BTO_WORKDIR/README_workflow.txt": "15cf609c8e9265c4f53a098b804573bfdc2fd34b635c22b2135d4a80d1d73c0b"
+  },
+  "previous_sampling_record": "research-workflow/docs/bto-sampling-5fs-2026-10-21.json",
+  "checks": [
+    "15 workflow contracts passed",
+    "6 BTO physical/conversion regressions passed",
+    "Local and preserved inputs/runners agree; only executable physics-input change is production length",
+    "Both Slurm templates request 60 h with unchanged CPU/memory resources; bash syntax passes",
+    "Production count is 8001 frames, total dynamics 50 ps; synthetic final-frame ASE times are 39.99/39.995/40 ps at 5 fs spacing",
+    "All original raw external evidence hashes remain unchanged"
+  ],
+  "no_cluster_jobs_submitted": true,
+  "limitations": "Configuration and local export verification only; no long-run thermal/domain/spectral convergence claim. Original cluster tests and earlier manifests retain their historical settings."
+}

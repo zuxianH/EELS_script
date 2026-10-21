@@ -10,7 +10,7 @@ variable temperature index 300.0
 variable seed index 299792458
 variable dt index 0.001
 variable equil_steps index 10000
-variable prod_steps index 10000
+variable prod_steps index 40000
 variable dump_every index 5
 variable equil_dump_every index 1000
 # The installed lmp launcher automatically loads the DeePMD plugin.
