@@ -1,5 +1,9 @@
 # BTO single-domain preparation
 
+The selected longer calculation uses [restartable 415 ps NVT](README_segmented.md):
+10 ps equilibration + 405 ps production, 5 fs output and 81,001 unique frames.
+The one-job commands below retain the earlier 50 ps configuration.
+
 Prepare one periodic five-atom cell, minimize its +x tetragonal branch, replicate
 it, then equilibrate and sample with unrestricted 300 K NVT. This preserves the
 user's original starting structure: `custom 3.97`, `a1 1.1`, and Ti basis

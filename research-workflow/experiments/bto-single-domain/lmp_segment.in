@@ -1,0 +1,38 @@
+# One continuous clock: equilibration 0..10000, production 10000..415000.
+# All variables are supplied by segmented_nvt.py from the frozen run manifest.
+units metal
+atom_style atomic
+boundary p p p
+if "${fresh} == 1" then &
+  "read_data ${cellfile}" &
+  "replicate ${nx} ${ny} ${nz}" &
+else "read_restart ${restartfile}"
+pair_style deepmd ${model}
+pair_coeff * * Ba Ti O
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+timestep ${dt}
+if "${fresh} == 1" then &
+  "velocity all create ${temperature} ${seed} mom yes rot no dist gaussian"
+# Same ID and style on restart restore the Nose-Hoover internal state.
+fix thermostat all nvt temp ${temperature} ${temperature} 0.1
+thermo 100
+thermo_style custom step time atoms temp pe ke etotal press pxx pyy pzz lx ly lz
+thermo_modify norm no flush yes format float %.12g
+restart ${checkpoint_every} ${checkpoint_dir}/checkpoint.*
+
+if "$(step) >= ${equil_steps}" then "jump SELF production"
+dump eq all custom ${equil_dump_every} ${outdir}/equilibration.lammpstrj &
+     id type element x y z vx vy vz ix iy iz
+dump_modify eq sort id element Ba Ti O format float %.15g first yes
+run ${equil_steps} upto
+undump eq
+
+label production
+dump prod all custom ${dump_every} ${outdir}/production.lammpstrj &
+     id type element x y z vx vy vz ix iy iz
+dump_modify prod sort id element Ba Ti O format float %.15g first yes
+run ${until} upto
+undump prod
+write_restart ${checkpoint_dir}/checkpoint.$(step:%.0f)
+print "SEGMENT_COMPLETE $(step:%.0f)"

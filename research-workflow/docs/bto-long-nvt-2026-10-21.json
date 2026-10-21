@@ -1,0 +1,77 @@
+{
+  "scope": "Restart continuity and local contracts only; production submission recorded separately",
+  "settings": {
+    "equilibration_ps": 10,
+    "production_ps": 405,
+    "total_ps": 415,
+    "dt_fs": 1,
+    "saved_interval_fs": 5,
+    "production_frames": 81001,
+    "replicate": [
+      10,
+      10,
+      50
+    ],
+    "temperature_K": 300
+  },
+  "resources": {
+    "cpus_per_task": 16,
+    "memory_GB": 40,
+    "hours_per_job": 60,
+    "segment_end_steps": [
+      50000,
+      100000,
+      150000,
+      200000,
+      250000,
+      300000,
+      350000,
+      400000,
+      415000
+    ],
+    "checkpoint_every_steps": 1000,
+    "estimated_compute_days": 16.5665
+  },
+  "cluster_check": {
+    "job_id": "4215716",
+    "state": "COMPLETED",
+    "exit_code": "0:0",
+    "elapsed_s": 50,
+    "report": {
+      "status": "passed",
+      "atoms": 40,
+      "frames": 11,
+      "steps": 60,
+      "max_periodic_position_difference_A": 0.0,
+      "max_velocity_difference_A_per_ps": 0.0,
+      "criterion": "Split vs uninterrupted positions <1e-9 A and velocities <1e-8 A/ps at every saved step",
+      "limitation": "Short restart continuity test; no thermal or domain convergence evidence"
+    },
+    "report_ref": "BTO_WORKDIR/validation/restart_check_20261021_v2/results/report.json",
+    "report_sha256": "e918f4cc1681aa299943330475b34ee2515823477f8d5f38db651d131dce429f"
+  },
+  "failed_attempts": [
+    {
+      "job_id": "4215664",
+      "state": "FAILED",
+      "exit_code": "1:0",
+      "reason": "Resolving the venv Python symlink selected the base interpreter directory, without lmp; corrected by retaining the venv bin path."
+    }
+  ],
+  "local_checks": "15 workflow contracts + nine trajectory/restart tests passed; bash syntax and git diff check passed",
+  "source_hashes": {
+    "check_restart.py": "0111a2c8589a0101ba5d1ab9262f612233caa9530ee9220a556853b70674ce72",
+    "lmp_segment.in": "fa97885a31655ab4649b17398946ccd3f44c65643206806ed05a87f8556572e3",
+    "segmented_nvt.py": "8bd3d441d145c694ad6369473c9f8fa5ca75c23dfd800911586b4a5904d42c3d",
+    "submit_segment.slurm": "f8f61346868a70bcbc9a7149ae682929644fee5f5400a36adfa0607e7a26f115",
+    "test_segmented_nvt.py": "cd29244ca19e096ac3df2aca730b263894b81df2993187cfd6f1668d917b3dc8"
+  },
+  "seed_sha256": "44da78bbf377f004d8c08e53e3ee58ab69e61e874e1a010c13a83b8b847f6113",
+  "model_sha256": "9d9c070bc34b362c4bdb71bc8090300ed59abccbe88bf7108d7119fce8a422d6",
+  "limitations": [
+    "No full-length production evidence yet",
+    "Finite-temperature single-domain stability and spectral convergence unverified",
+    "afterok successors block after failure; resume and rebuild owned chain manually",
+    "Legacy one-job defaults remain 50 ps; selected long run uses its frozen manifest"
+  ]
+}

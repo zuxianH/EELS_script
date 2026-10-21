@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_id": "09b2095434884b009336ed71b0c9b9e5",
+  "task_id": "bto-long-nvt",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "9915cd8723da8975fdf2e935c67aabe63431e443",
+  "created_at": "2026-10-21T21:17:30.148364+00:00",
+  "status": "verified",
+  "scope": "Local contracts and 40-atom 60-step restart continuity only; not long-time domain evidence",
+  "claim": "Restartable 415 ps NVT uses 1 ps checkpoints and nine 60-hour segments; bounded split and uninterrupted trajectories agree exactly at saved steps.",
+  "evidence": [
+    "research-workflow/docs/bto-long-nvt-2026-10-21.json"
+  ],
+  "criterion": "24 local tests pass; Slurm check 4215716 completed 0:0; positions and velocities agree at all 11 saved frames; final source matches tested hashes.",
+  "next_action": "Commit the reviewed source, freeze the production inputs and submit the user-authorized nine-job chain."
+}

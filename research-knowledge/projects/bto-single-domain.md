@@ -63,7 +63,7 @@ changes the dynamics and must be treated as a separate experiment. Establish
 integration-step, saved-interval and window convergence for the intended
 spectrum, and confirm the experimental reference definition.
 
-## Current production sampling
+## Earlier 50 ps configuration
 
 The user selected output every five integration steps: **5 fs between production
 frames**, retaining **1 fs integration**. The later duration choice is **50 ps
@@ -71,4 +71,19 @@ total: 10 ps equilibration + 40 ps production**. This yields 8001 production
 frames including step zero. The original cluster checks above remain historical
 10 fs output checks. The append-only [sampling update](../../research-workflow/docs/bto-sampling-5fs-2026-10-21.json)
 records the earlier 10+10 ps configuration; the [duration update](../../research-workflow/docs/bto-duration-50ps-2026-10-21.json)
-provides current source hashes and local verification. No new job was submitted.
+provides that configuration's hashes and verification. No job was submitted
+by that update.
+
+## Selected longer production run
+
+The user subsequently requested **10 ps equilibration + 405 ps production**,
+retaining **1 fs integration and 5 fs sampling**, for **81,001 frames**. The
+reference trajectory starts at step 50000 and targets absolute step 455000,
+so its sampled span is 405 ps. The new run's production is 10000..415000.
+
+The [segmented workflow](../../research-workflow/experiments/bto-single-domain/README_segmented.md)
+uses nine 60-hour jobs on 16 CPU threads with 40 GB RAM per job and 1 ps
+checkpoints. Estimated total compute is 16.6 days, excluding queues. Frozen
+input/model/seed snapshots retain the validated seed and PBESOL potential.
+See [task records](../tasks/bto-long-nvt/README.md) for submission and restart
+evidence. Domain stability and spectral convergence remain unverified.
