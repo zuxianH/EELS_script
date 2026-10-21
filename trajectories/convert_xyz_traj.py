@@ -4,7 +4,7 @@
 With only an input argument, the output is placed beside the input and its
 final suffix is replaced by ".traj":
 
-    python convert_xyz_traj.py /path/to/simulation.pos_0.xyz
+    python trajectories/convert_xyz_traj.py /path/to/simulation.pos_0.xyz
 
 Unlike ase.io.read(path, index=":"), this converter keeps only one frame in
 memory. It also preserves i-PI cell/unit annotations.

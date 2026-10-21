@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+.venv/
+
+# Keep simulation inputs and generated arrays outside the source tree.
+*.xyz
+*.extxyz
+*.traj
+*.npy
+*.npz
+*.zarr/

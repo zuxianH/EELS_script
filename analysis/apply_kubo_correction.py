@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply the notebook's Kubo detailed-balance correction to raw TACAW arrays.
 
-Run: python3 apply_convKubo.py
+Run: python3 analysis/apply_kubo_correction.py /path/to/TACAW.npy
 Requires NumPy. Defaults match cells 11–13 of plot_paper.ipynb.
 Inputs have shape (energy, y, x), with an already FFT-shifted energy axis.
 Outputs keep that ordering and multiply each energy plane by
@@ -18,7 +18,6 @@ import numpy as np
 KB_MEV = 0.08617333262  # meV/K, as in the notebook
 PLANCK_J_S = 6.62607015e-34
 ELEMENTARY_CHARGE_C = 1.602176634e-19
-DEFAULT_FILES = ('Si_10K_beads10_TACAW.npy', 'Si_10K_beads165_TACAW.npy')
 
 
 def energy_axis(n_frames, timestep_fs, stride):
@@ -81,14 +80,13 @@ def convKubo(source, temperature=10.0, timestep_fs=2.5, stride=3):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('files', nargs='*', type=Path,
-                        help='Input .npy files; defaults to both Si files beside this script.')
+    parser.add_argument('files', nargs='+', type=Path,
+                        help='Input .npy files; corrected outputs are saved beside them.')
     parser.add_argument('--temperature', type=float, default=10.0, help='Kelvin (default: 10).')
     parser.add_argument('--timestep-fs', type=float, default=2.5, help='Default: 2.5 fs.')
     parser.add_argument('--stride', type=int, default=3, help='Default: 3.')
     args = parser.parse_args()
-    files = args.files or [Path(__file__).resolve().parent / name for name in DEFAULT_FILES]
-    for source in files:
+    for source in args.files:
         convKubo(source, args.temperature, args.timestep_fs, args.stride)
 
 

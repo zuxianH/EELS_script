@@ -1,3 +1,5 @@
+"""Calculate TACAW scattering-angle coordinates in milliradians."""
+
 import numpy as np
 
 
