@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+tacaw_runs/
+.studio_profiles.yaml
+playwright-report/
+/core
+/core.*

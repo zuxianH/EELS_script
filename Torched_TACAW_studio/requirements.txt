@@ -1,0 +1,8 @@
+streamlit>=1.63,<2
+plotly>=6,<8
+ase>=3.23,<4
+numpy>=2,<3
+PyYAML>=6,<7
+zarr>=3.1,<4
+filelock>=3.13,<5
+streamlit-code-editor>=0.1.22,<0.2
