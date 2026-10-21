@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-21T19:18:12.791Z",
+  "repository": "zuxianH/EELS_script",
+  "branch": "task/workflow-bootstrap/codex",
+  "method": "Authenticated GitHub connector; ordinary terminal push had no HTTPS credentials.",
+  "source_head": "9c3039300c09084130f9fb2a588e526907af92e0",
+  "published_content_head": "8c42e80df80125a915d3ed0f4a602cd2e9355d1e",
+  "verification": "Each published intermediate Git tree SHA equals its original local tree SHA, including rw executable mode. Commit IDs differ because the connector creates new commit metadata.",
+  "commits": [
+    {
+      "original_local_commit": "be787b4bbcff8d710133bf3209f5307d388ceab2",
+      "published_commit": "af88e5e3d81533b1eb58758e5771a526a8df4d79",
+      "identical_tree_sha": "c626ba5ba2eee4f60299f0309f99824bd7008f62"
+    },
+    {
+      "original_local_commit": "2cbcbece31541bd4e19ca8a6e428685a85b04fe0",
+      "published_commit": "02c691cfacb1a075f66d6a09547b2571f4354eb9",
+      "identical_tree_sha": "92aa8bedf896b412d298a89b4a6870cfbe7f6ffd"
+    },
+    {
+      "original_local_commit": "9c3039300c09084130f9fb2a588e526907af92e0",
+      "published_commit": "8c42e80df80125a915d3ed0f4a602cd2e9355d1e",
+      "identical_tree_sha": "63f78182479c416440abdbf61e8f62a5bae1412d"
+    }
+  ],
+  "scope": "Publication of local workflow setup and existing validation evidence only; no cluster validation, deployment, scheduler jobs, or main-branch integration."
+}
