@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "record_id": "13d15691185946b586523c6eb6d7ffdb",
+  "task_id": "bto-sampling-5fs",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "fced33e8102adcf3a0daf8ee2bb40e5b75cb165b",
+  "created_at": "2026-10-21T20:50:38.857009+00:00",
+  "status": "observed",
+  "scope": "This project and source revision only",
+  "claim": "Changed local and preserved NVT input/runner defaults to output every five steps; retained 1 fs integration, 10 ps equilibration and 10 ps production. Updated documentation, frame counts and scoped timing evidence.",
+  "evidence": [
+    "15 workflow contracts and six BTO regressions pass; synthetic step 0/5/10 exports produce 0/0.005/0.01 ps times.",
+    "Both source copies match; only executable changes are dump-frequency defaults. Historical external evidence hashes remain unchanged; see research-workflow/docs/bto-sampling-5fs-2026-10-21.json."
+  ],
+  "criterion": "",
+  "next_action": "Integrate the local update and check the exact integrated source; use 5 fs frame spacing for new output and each old trajectory’s own metadata for existing output.",
+  "kind": "handover",
+  "branch": "task/bto-sampling-5fs/codex",
+  "goal": "Match BTO production sampling to the reference every five 1-fs integration steps while retaining 10 ps equilibration and 10 ps production; update local and preserved scripts and append evidence without changing historical trajectories or job records.",
+  "files_changed": [
+    "research-knowledge/events/5f7655efc0ea418893cd88b62e671393.json",
+    "research-knowledge/events/a9e959b4040246f395c4c09515af3932.json",
+    "research-knowledge/projects/bto-single-domain.md",
+    "research-knowledge/tasks/bto-sampling-5fs/README.md",
+    "research-knowledge/tasks/bto-sampling-5fs/task.json",
+    "research-workflow/docs/bto-sampling-5fs-2026-10-21.json",
+    "research-workflow/experiments/bto-single-domain/README.md",
+    "research-workflow/experiments/bto-single-domain/lmp_nvt.in",
+    "research-workflow/experiments/bto-single-domain/run_workflow.py"
+  ],
+  "completed_checks": [
+    "15 workflow contracts and six BTO regressions pass; synthetic step 0/5/10 exports produce 0/0.005/0.01 ps times.",
+    "Both source copies match; only executable changes are dump-frequency defaults. Historical external evidence hashes remain unchanged; see research-workflow/docs/bto-sampling-5fs-2026-10-21.json."
+  ],
+  "failed_attempts": [
+    "Initial multi-file patch had a stale documentation context and applied no changes; the corrected patch succeeded."
+  ],
+  "job_ids": [],
+  "uncertainty": [
+    "No new cluster dynamics or spectral-convergence test was run. Original cluster checks remain historical 10 fs output evidence."
+  ],
+  "code_committed": true,
+  "publication": "local; remote publication requires a successful push"
+}
