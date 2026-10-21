@@ -87,3 +87,9 @@ checkpoints. Estimated total compute is 16.6 days, excluding queues. Frozen
 input/model/seed snapshots retain the validated seed and PBESOL potential.
 See [task records](../tasks/bto-long-nvt/README.md) for submission and restart
 evidence. Domain stability and spectral convergence remain unverified.
+
+The user superseded the nine-job plan with one 60-hour job targeting absolute
+step 415000 and manual continuation. Jobs 4215841–4215849 were cancelled;
+replacement job 4215912 uses the same physics and 1 ps checkpoints. The new
+output is `BTO_WORKDIR/results/single_domain_300K_415ps_manual`. No automatic
+successors are scheduled. See the task's latest single-job record.

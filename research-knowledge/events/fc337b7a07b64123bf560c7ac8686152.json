@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_id": "fc337b7a07b64123bf560c7ac8686152",
+  "task_id": "bto-long-nvt",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "0ba7f0d74f374127c02eb231d8c82bf078ff971e",
+  "created_at": "2026-10-21T21:20:28.193823+00:00",
+  "status": "observed",
+  "scope": "Scheduler submission/cancellation and unchanged frozen source identity; no new physics validation claimed",
+  "claim": "Per user clarification cancelled jobs 4215841–4215849 and submitted only job 4215912 toward the full 415 ps target, with 60 hours, 16 CPU threads, 40 GB and manual continuation only.",
+  "evidence": [
+    "research-workflow/docs/bto-manual-single-job-2026-10-21.json"
+  ],
+  "criterion": "",
+  "next_action": "Leave only job 4215912 to run; user will manually resubmit its continuation script after timeout if desired."
+}

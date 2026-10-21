@@ -1,0 +1,48 @@
+{
+  "user_decision": "Submit one job toward full 415 ps; user performs any continuation manually",
+  "job": {
+    "job_id": "4215912",
+    "until_step": 415000,
+    "dependency": null,
+    "automatic_successors": false,
+    "cpus": 16,
+    "memory_GB": 40,
+    "walltime_hours": 60
+  },
+  "cancelled_jobs": [
+    "4215841",
+    "4215842",
+    "4215843",
+    "4215844",
+    "4215845",
+    "4215846",
+    "4215847",
+    "4215848",
+    "4215849"
+  ],
+  "code_revision": "2a569d5ed025bcb649abf7c95911820d1f2d7952",
+  "run_ref": "BTO_WORKDIR/results/single_domain_300K_415ps_manual",
+  "manual_continuation_ref": "BTO_WORKDIR/results/single_domain_300K_415ps_manual/continue_manually.sh",
+  "config": {
+    "equil_steps": 10000,
+    "prod_steps": 405000,
+    "segment_steps": 415000,
+    "dt_ps": 0.001,
+    "dump_every": 5,
+    "checkpoint_every": 1000,
+    "production_frame_count": 81001
+  },
+  "source_hashes": {
+    "model.pb": "9d9c070bc34b362c4bdb71bc8090300ed59abccbe88bf7108d7119fce8a422d6",
+    "minimized_cell.data": "44da78bbf377f004d8c08e53e3ee58ab69e61e874e1a010c13a83b8b847f6113",
+    "source/segmented_nvt.py": "8bd3d441d145c694ad6369473c9f8fa5ca75c23dfd800911586b4a5904d42c3d",
+    "source/lmp_segment.in": "fa97885a31655ab4649b17398946ccd3f44c65643206806ed05a87f8556572e3",
+    "source/submit_segment.slurm": "f8f61346868a70bcbc9a7149ae682929644fee5f5400a36adfa0607e7a26f115"
+  },
+  "notes": [
+    "Old job 4215841 cancelled after 2 minutes 2 seconds; raw output preserved separately",
+    "No automatic successor or dependency",
+    "A timeout resumes from the latest saved checkpoint on manual resubmission to absolute step 415000",
+    "The full target is unlikely to finish within 60 hours; intermediate data and 1 ps checkpoints are expected"
+  ]
+}

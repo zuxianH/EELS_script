@@ -1,5 +1,11 @@
 # Restartable 415 ps BTO NVT
 
+The current user choice is **one 60-hour job targeting all 415 ps**, followed
+by manual continuation when needed. Prepare with `--segment-steps 415000` and
+submit only endpoint `415000`. Resubmit that same endpoint after a timeout;
+there is no automatic successor. The earlier nine-job plan below is an
+optional historical arrangement, cancelled for the current run.
+
 The selected run is **10 ps equilibration + 405 ps production** at 300 K,
 with 1 fs integration and 5 fs production output: **81,001 unique frames**.
 It reuses the validated five-atom minimized +x seed and BTO PBESOL potential,

@@ -21,3 +21,15 @@ Submitted production jobs **4215841–4215849**, with absolute endpoints 50000,
 successors were waiting on dependencies. Frozen code revision:
 `2a569d5ed025bcb649abf7c95911820d1f2d7952`. Results: `BTO_WORKDIR/results/single_domain_300K_415ps`.
 See [submission evidence](../../../research-workflow/docs/bto-long-nvt-submission-2026-10-21.json).
+
+## Superseding user decision: one job, manual continuation
+
+The user requested only one job aimed at the full 415 ps target, accepting a
+timeout and handling continuation themselves. Cancelled jobs 4215841–4215849
+and replaced them with **4215912**, 16 CPU threads, 40 GB, 60 hours, targeting
+absolute step 415000. There are no dependent or automatically submitted jobs.
+The frozen manifest uses segment_steps=415000; other physics settings are
+unchanged. New output is `BTO_WORKDIR/results/single_domain_300K_415ps_manual`.
+After the job stops, the user can run its `continue_manually.sh` to resubmit
+the same endpoint and restore the latest checkpoint. Do not submit another job
+on the user's behalf without a new instruction. See [single-job evidence](../../../research-workflow/docs/bto-manual-single-job-2026-10-21.json).
