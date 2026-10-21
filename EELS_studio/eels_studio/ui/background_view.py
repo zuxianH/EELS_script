@@ -21,8 +21,7 @@ def _fit_pick_button(group, label, *, disabled=False):
     active = not disabled and st.session_state.get("bg_pick_target") == group
     st.button(f"Cancel {label}" if active else f"Pick {label}", key=f"bg_pick_{group}",
               use_container_width=True, disabled=disabled,
-              on_click=_select_pick_target, args=("" if active else group,),
-              help="Click the minimum, then the maximum in the plot. Dragging still pans.")
+              on_click=_select_pick_target, args=("" if active else group,))
     return st.empty()
 
 
