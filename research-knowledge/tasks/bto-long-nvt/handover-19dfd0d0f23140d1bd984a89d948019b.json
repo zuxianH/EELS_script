@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "record_id": "19dfd0d0f23140d1bd984a89d948019b",
+  "task_id": "bto-long-nvt",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "66e4aaf8c3c876654d2e3d96d891f821a8c3aa7e",
+  "created_at": "2026-10-21T21:18:34.847491+00:00",
+  "status": "observed",
+  "scope": "This project and source revision only",
+  "claim": "Implemented and validated restartable BTO NVT, froze source revision 2a569d5 and submitted nine dependent jobs for 10 ps equilibration plus 405 ps production at 300 K, 1 fs integration and 5 fs output.",
+  "evidence": [
+    "15 workflow tests and nine trajectory/restart tests passed; shell syntax and diff checks passed.",
+    "Restart check 4215716 completed 0:0; 40-atom split and uninterrupted trajectories matched exactly in positions and velocities at all 11 saved frames; final source hashes match tested sources."
+  ],
+  "criterion": "",
+  "next_action": "Monitor 4215841 and its eight afterok successors. Results and frozen manifest: BTO_WORKDIR/results/single_domain_300K_415ps. Check spatial Ti order and equilibrium observables as data accumulate.",
+  "kind": "handover",
+  "branch": "task/bto-long-nvt/codex",
+  "goal": "Run 10 ps equilibration and 405 ps NVT production in restartable Arrhenius segments",
+  "files_changed": [
+    "research-knowledge/events/09b2095434884b009336ed71b0c9b9e5.json",
+    "research-knowledge/events/382fad50601f4e4a8ecc752765873bef.json",
+    "research-knowledge/events/ec3f88e020404ddab11349d36655f3dd.json",
+    "research-knowledge/projects/bto-single-domain.md",
+    "research-knowledge/tasks/bto-long-nvt/README.md",
+    "research-knowledge/tasks/bto-long-nvt/task.json",
+    "research-workflow/docs/bto-long-nvt-2026-10-21.json",
+    "research-workflow/docs/bto-long-nvt-submission-2026-10-21.json",
+    "research-workflow/experiments/bto-single-domain/README.md",
+    "research-workflow/experiments/bto-single-domain/README_segmented.md",
+    "research-workflow/experiments/bto-single-domain/check_restart.py",
+    "research-workflow/experiments/bto-single-domain/lmp_segment.in",
+    "research-workflow/experiments/bto-single-domain/segmented_nvt.py",
+    "research-workflow/experiments/bto-single-domain/submit_segment.slurm",
+    "research-workflow/experiments/bto-single-domain/test_segmented_nvt.py"
+  ],
+  "completed_checks": [
+    "15 workflow tests and nine trajectory/restart tests passed; shell syntax and diff checks passed.",
+    "Restart check 4215716 completed 0:0; 40-atom split and uninterrupted trajectories matched exactly in positions and velocities at all 11 saved frames; final source hashes match tested sources."
+  ],
+  "failed_attempts": [
+    "Restart check 4215664 failed because resolving the venv Python symlink selected the base interpreter directory without lmp; corrected and passing in 4215716."
+  ],
+  "job_ids": [
+    "4215664",
+    "4215716",
+    "4215841",
+    "4215842",
+    "4215843",
+    "4215844",
+    "4215845",
+    "4215846",
+    "4215847",
+    "4215848",
+    "4215849"
+  ],
+  "uncertainty": [
+    "Production has started in job 4215841, but completion, domain stability and spectra convergence are unverified; compute estimate is extrapolated.",
+    "If a segment times out, resubmit that endpoint from its frozen script; replace blocked downstream dependency chain. Raw segment trajectories overlap and must be assembled using their index."
+  ],
+  "code_committed": true,
+  "publication": "local; remote publication requires a successful push"
+}
