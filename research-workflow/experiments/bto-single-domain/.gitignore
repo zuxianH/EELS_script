@@ -1,0 +1,8 @@
+.software/
+results/
+validation/
+bto-*.out
+*.pb
+*.data
+*.lammpstrj
+restart_*

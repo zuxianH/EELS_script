@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-21T20:38:55.175962+00:00",
+  "task": "bto-single-domain",
+  "workflow_contracts": {
+    "passed": 15,
+    "failed": 0
+  },
+  "bto_regressions": {
+    "passed": 6,
+    "failed": 0
+  },
+  "local_checks": [
+    "Portable env.sh successfully selects the existing isolated runtime via BTO_SOFTWARE_ROOT",
+    "Bash syntax checks pass for env.sh/install_deepmd.sh/submit_arrhenius.slurm",
+    "run_workflow.py --help succeeds",
+    "Local documentation links and event schemas checked",
+    "Arrhenius context includes exactly two scoped verified lessons",
+    "All execution/promotion flags remain disabled; no site active release",
+    "Preserved source snapshot matches evidence-manifest hashes",
+    "Small source/records checked for personal paths, account identifiers and credential markers"
+  ],
+  "corrected_verification_attempt": "An initial standalone schema-check snippet omitted the research-workflow module search path and raised ModuleNotFoundError; adding the repository package path made that check pass. Both test suites had already passed.",
+  "cluster_submissions_during_record_update": 0,
+  "portable_slurm_template_submitted": false,
+  "clean_reinstall_from_lock_tested": false,
+  "limitations": "Local contract/analysis checks do not extend the scope of the original short cluster tests or establish a production release."
+}

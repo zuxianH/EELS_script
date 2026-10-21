@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "record_id": "e8f98506b7754f028c9fbfcd5d28a1e0",
+  "task_id": "bto-single-domain",
+  "project": "eels-script",
+  "site": "local",
+  "authoring_tool": "codex",
+  "code_revision": "a5b65a3024a5a0ad8a8633020ec21b8f4fa5c452",
+  "created_at": "2026-10-21T20:35:25.487981+00:00",
+  "status": "observed",
+  "scope": "This project and source revision only",
+  "claim": "Created an isolated task worktree",
+  "evidence": [
+    "git:a5b65a3024a5a0ad8a8633020ec21b8f4fa5c452"
+  ],
+  "criterion": "",
+  "next_action": "Implement the recorded task goal",
+  "kind": "task_started"
+}

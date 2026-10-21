@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "record_id": "a29f542739f54156916845b922a49e32",
+  "task_id": "bto-single-domain",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "authoring_tool": "codex",
+  "code_revision": "a5b65a3024a5a0ad8a8633020ec21b8f4fa5c452",
+  "created_at": "2026-10-21T20:37:50.517448+00:00",
+  "status": "observed",
+  "scope": "Repository record maintenance; external checks are identified by file/model digests, not by the recording baseline commit.",
+  "claim": "Preserved the BTO experiment source and recorded the original completed Arrhenius checks, setup failures and scientific limits; portable environment/submission adaptations are pending local verification.",
+  "evidence": [
+    "research-workflow/docs/bto-single-domain-arrhenius-2026-10-21.json"
+  ],
+  "criterion": "",
+  "next_action": "Run workflow contracts, BTO regressions, syntax, sanitization and context checks; commit and prepare a handover."
+}

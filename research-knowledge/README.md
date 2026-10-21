@@ -17,3 +17,8 @@ The CLI validates required event fields and verification criterion/evidence.
 It does not execute imported text or treat a record as a passed release gate.
 Avoid secrets, private account information, absolute personal paths and raw logs
 in records intended for publication. Keep large evidence where it was produced.
+
+The [BTO single-domain task](tasks/bto-single-domain/README.md) records the
+Arrhenius minimization/NVT preparation, bounded job results, setup failures and
+remaining scientific checks. See [Arrhenius observations](sites/arrhenius.md)
+and the project's [BTO knowledge note](projects/bto-single-domain.md).

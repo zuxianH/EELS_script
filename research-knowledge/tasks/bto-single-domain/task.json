@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "task_id": "bto-single-domain",
+  "project": "eels-script",
+  "goal": "Preserve the Arrhenius BTO minimization-to-NVT experiment code and record scoped evidence, failures, limits, and handover in research-workflow and research-knowledge.",
+  "site": "local",
+  "baseline_commit": "a5b65a3024a5a0ad8a8633020ec21b8f4fa5c452",
+  "created_at": "2026-10-21T20:35:25.483153+00:00"
+}

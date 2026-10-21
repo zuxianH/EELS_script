@@ -1,0 +1,289 @@
+{
+  "schema_version": 1,
+  "created_at": "2026-10-21T20:37:50.148369+00:00",
+  "project": "eels-script",
+  "site": "arrhenius",
+  "task_id": "bto-single-domain",
+  "recording_baseline_commit": "a5b65a3024a5a0ad8a8633020ec21b8f4fa5c452",
+  "evidence_root_alias": "BTO_WORKDIR (original local LAMMPS/BTO directory, outside this repository)",
+  "code_identity": "External tests are identified by file digests and saved input/command records, not by the repository-recording baseline commit.",
+  "original_source_files": {
+    "BTO_WORKDIR/lmp_minimize.in": {
+      "sha256": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+      "bytes": 2683
+    },
+    "BTO_WORKDIR/lmp_nvt.in": {
+      "sha256": "f78e47954c02c7a2b6110a742bb2c39427bb79466862429c882dd56e47f7b62c",
+      "bytes": 2083
+    },
+    "BTO_WORKDIR/run_workflow.py": {
+      "sha256": "277e2fc4b908ae5c0d5e21cb9f14e982f1f8e6ecff9c9b173e68b4988d8e13bf",
+      "bytes": 7474
+    },
+    "BTO_WORKDIR/trajectory_tools.py": {
+      "sha256": "01901cbed8386483a9e924d2d27e3730be336d34252c75e6560fb29048e77cae",
+      "bytes": 12041
+    },
+    "BTO_WORKDIR/test_trajectory_tools.py": {
+      "sha256": "18c8693203934e27698578bd2b2b7ac8462b6f6aaa0095c8d675f524aa0b66cb",
+      "bytes": 4479
+    },
+    "BTO_WORKDIR/env.sh": {
+      "sha256": "44cb06aea849ab5dfde57dfda7b26c087ff49183681082f7eb132b080f5487cd",
+      "bytes": 1155
+    },
+    "BTO_WORKDIR/install_deepmd.sh": {
+      "sha256": "f68137cd7b78b04d1dc7cc2c197e4bee9b2f05eaf09dd50998bbf60230fa9da3",
+      "bytes": 1041
+    },
+    "BTO_WORKDIR/submit_bto.slurm": {
+      "sha256": "e67e71aae0d68528cdb88c9fef81161b20bcef9b1b9cbf3924c897855351bbc6",
+      "bytes": 667
+    },
+    "BTO_WORKDIR/requirements-runtime.lock": {
+      "sha256": "976fdff0b532fd7717e789e83fd8ce24a1f45fa03841c0be7765de5b7aeba644",
+      "bytes": 1185
+    }
+  },
+  "preserved_experiment_files": {
+    "research-workflow/experiments/bto-single-domain/.gitignore": {
+      "sha256": "f187de77acec61c735cc2ffdd1fc6cac3db2c3e4c4a785571c3ed48043116dfa",
+      "bytes": 76
+    },
+    "research-workflow/experiments/bto-single-domain/README.md": {
+      "sha256": "4fc62dfd505acfb381694a9cd190c6bb01d3f1f9616f9418bce59d47af0768e7",
+      "bytes": 5561
+    },
+    "research-workflow/experiments/bto-single-domain/env.sh": {
+      "sha256": "c610e2105477d33d3253f491a07b59970172176f64c4b77796050af418751098",
+      "bytes": 1174
+    },
+    "research-workflow/experiments/bto-single-domain/install_deepmd.sh": {
+      "sha256": "58b46baeefce21ea696dd657bdf11d9a1329168703d58bdfa95dad2363fd1096",
+      "bytes": 1079
+    },
+    "research-workflow/experiments/bto-single-domain/lmp_minimize.in": {
+      "sha256": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+      "bytes": 2683
+    },
+    "research-workflow/experiments/bto-single-domain/lmp_nvt.in": {
+      "sha256": "f78e47954c02c7a2b6110a742bb2c39427bb79466862429c882dd56e47f7b62c",
+      "bytes": 2083
+    },
+    "research-workflow/experiments/bto-single-domain/requirements-runtime.lock": {
+      "sha256": "976fdff0b532fd7717e789e83fd8ce24a1f45fa03841c0be7765de5b7aeba644",
+      "bytes": 1185
+    },
+    "research-workflow/experiments/bto-single-domain/run_workflow.py": {
+      "sha256": "277e2fc4b908ae5c0d5e21cb9f14e982f1f8e6ecff9c9b173e68b4988d8e13bf",
+      "bytes": 7474
+    },
+    "research-workflow/experiments/bto-single-domain/submit_arrhenius.slurm": {
+      "sha256": "0ca0c23b95a60fab478b9f08424280bf1e30f76f78c3ccc789c8060eb554c2cc",
+      "bytes": 683
+    },
+    "research-workflow/experiments/bto-single-domain/test_trajectory_tools.py": {
+      "sha256": "18c8693203934e27698578bd2b2b7ac8462b6f6aaa0095c8d675f524aa0b66cb",
+      "bytes": 4479
+    },
+    "research-workflow/experiments/bto-single-domain/trajectory_tools.py": {
+      "sha256": "01901cbed8386483a9e924d2d27e3730be336d34252c75e6560fb29048e77cae",
+      "bytes": 12041
+    }
+  },
+  "external_evidence": {
+    "BTO_WORKDIR/validation/RESULTS.txt": {
+      "sha256": "e16193684777d6fb62b67d87f74ca4a09aeb75d1d6c3bfa6317de744ff1acc3e",
+      "bytes": 1289
+    },
+    "BTO_WORKDIR/validation/validation_report.json": {
+      "sha256": "c969e8dfbe9f35606949c133f1a9e5c2c13515a2ffe55b886e30dfe2c430e3d8",
+      "bytes": 2785
+    },
+    "BTO_WORKDIR/validation/workflow_smoke/minimization/lmp_minimize.in": {
+      "sha256": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+      "bytes": 2683
+    },
+    "BTO_WORKDIR/validation/workflow_smoke/minimization/minimized_cell.lammpstrj": {
+      "sha256": "b2bc0681f52b6a5b38f6dcdaba99f4e089c091affc7fc41f5955a8b071793fde",
+      "bytes": 511
+    },
+    "BTO_WORKDIR/validation/workflow_smoke/minimization/screen.txt": {
+      "sha256": "7112d8a9596ddafc8b5317afbf0dcacc1c5ea897308cf61b315678c3d50395f9",
+      "bytes": 15134
+    },
+    "BTO_WORKDIR/validation/workflow_smoke/nvt/lmp_nvt.in": {
+      "sha256": "3595264a2f091112a5a6b37f0219f9f4c79fa4637b2119326c1206fde41dad7e",
+      "bytes": 2083
+    },
+    "BTO_WORKDIR/validation/workflow_smoke/nvt/domain_check/domain_summary.json": {
+      "sha256": "37fd61c02940c45e5d812fe1541e1ac08876c47effd4b11e780c30d04804388f",
+      "bytes": 549
+    },
+    "BTO_WORKDIR/validation/full_size_check/nvt/lmp_nvt.in": {
+      "sha256": "3595264a2f091112a5a6b37f0219f9f4c79fa4637b2119326c1206fde41dad7e",
+      "bytes": 2083
+    },
+    "BTO_WORKDIR/validation/full_size_check/nvt/screen.txt": {
+      "sha256": "62699e26d480e7a5c404baefc258b2bb63dce80ab0eb4f1a197702c2bcbf99fe",
+      "bytes": 7991
+    },
+    "BTO_WORKDIR/validation/full_size_check/nvt/domain_check/domain_summary.json": {
+      "sha256": "fb49c89d91771b15de5a08f21e20c24e32255e7ff640f9f64ae5cdc2c60437a0",
+      "bytes": 554
+    }
+  },
+  "runtime": {
+    "python": "3.11.17",
+    "deepmd": "3.2.0",
+    "lammps": "22 Jul 2025 Update 2 (PyPI 2025.7.22.2.0)",
+    "tensorflow_cpu": "2.21.0",
+    "mpich": "5.0.2",
+    "ase": "3.29.0",
+    "execution": "CPU; CUDA_VISIBLE_DEVICES=-1; packaged launcher discovers matched plugin"
+  },
+  "potential": {
+    "filename": "BTO_pbesol_final_compressed.pb",
+    "sha256": "9d9c070bc34b362c4bdb71bc8090300ed59abccbe88bf7108d7119fce8a422d6",
+    "type_map": [
+      "Ba",
+      "Ti",
+      "O"
+    ],
+    "cutoff_A": 6.0,
+    "included_in_repository": false
+  },
+  "results": {
+    "minimization": {
+      "starting_input": "user-requested 3.97, a1=1.1, Ti x=0.85",
+      "cell_A": [
+        4.0937260738527455,
+        3.964549787444469,
+        3.964549787444469
+      ],
+      "Ti_minus_six_O_center_A": [
+        0.17153628437728244,
+        6.291263806209221e-16,
+        6.291263806209221e-16
+      ],
+      "supercell_10x10x50_A": [
+        40.937260738527456,
+        39.64549787444469,
+        198.22748937222346
+      ],
+      "physical_fmax_eV_per_A": 2.82779100136e-09
+    },
+    "slurm_smoke": {
+      "job_id": 4212001,
+      "state": "COMPLETED",
+      "exit_code": "0:0",
+      "atoms": 40,
+      "equilibration_steps": 200,
+      "production_steps": 200,
+      "dt_ps": 0.001,
+      "summary": {
+        "frames": 21,
+        "first_step": 0,
+        "last_step": 200,
+        "n_titanium": 8,
+        "time_averaged_local_vectors": {
+          "mean_dx_A": 0.16478308458473917,
+          "mean_dy_A": 0.006086598925055359,
+          "mean_dz_A": -0.009326544915366303,
+          "mean_local_magnitude_A": 0.166669110205231,
+          "magnitude_of_mean_A": 0.16515900245458656,
+          "coherence_ratio": 0.9909394863344206,
+          "positive_x_fraction": 1.0,
+          "positive_x_dominant_fraction": 1.0
+        },
+        "note": "Inspect spatial Ti averages for domains; thermal sign changes alone are not domain walls."
+      }
+    },
+    "full_size_check": {
+      "job_id": 4212065,
+      "state": "COMPLETED",
+      "exit_code": "0:0",
+      "atoms": 25000,
+      "equilibration_steps": 10,
+      "production_steps": 20,
+      "dt_ps": 0.001,
+      "production_loop_seconds": 68.9807,
+      "seconds_per_step": 3.449035,
+      "slurm_reported_MaxRSS_KiB": 12461960,
+      "summary": {
+        "frames": 3,
+        "first_step": 0,
+        "last_step": 20,
+        "n_titanium": 5000,
+        "time_averaged_local_vectors": {
+          "mean_dx_A": 0.16736680591897096,
+          "mean_dy_A": 0.0004950498432708299,
+          "mean_dz_A": 0.0007197055977653338,
+          "mean_local_magnitude_A": 0.17640636257498485,
+          "magnitude_of_mean_A": 0.1673690854788102,
+          "coherence_ratio": 0.948770118241437,
+          "positive_x_fraction": 1.0,
+          "positive_x_dominant_fraction": 0.9972
+        },
+        "note": "Inspect spatial Ti averages for domains; thermal sign changes alone are not domain walls."
+      }
+    },
+    "checks": [
+      "6 numerical/trajectory regression tests passed",
+      "primitive-cell energy agrees with replicated full-size initial energy at rtol 1e-10",
+      "direct ASE export and existing EELS XYZ converter agree for all 21 smoke frames",
+      "full-size ASE export verified: 3 frames, 25000 atoms, periodic cell, 10 fs spacing",
+      "Python compilation and bash syntax checks passed"
+    ],
+    "limitation": "Short execution tests only: neither 300 K thermal convergence nor long-time single-domain stability has been established."
+  },
+  "original_jobs": [
+    {
+      "job_id": 4212001,
+      "partition": "cpu",
+      "cpu_threads": 4,
+      "memory_GB": 10,
+      "hard_walltime_minutes": 10,
+      "elapsed_seconds": 59,
+      "atoms": 40,
+      "equilibration_steps": 200,
+      "production_steps": 200
+    },
+    {
+      "job_id": 4212065,
+      "partition": "cpu",
+      "cpu_threads": 16,
+      "memory_GB": 40,
+      "hard_walltime_minutes": 10,
+      "elapsed_seconds": 158,
+      "atoms": 25000,
+      "equilibration_steps": 10,
+      "production_steps": 20
+    }
+  ],
+  "default_manual_production": {
+    "temperature_K": 300,
+    "replicate": [
+      10,
+      10,
+      50
+    ],
+    "dt_ps": 0.001,
+    "equilibration_steps": 10000,
+    "production_steps": 10000,
+    "dump_every_steps": 10,
+    "provisional_settings": true,
+    "submitted": false
+  },
+  "portable_adaptations": [
+    "BTO_SOFTWARE_ROOT replaces machine-relative environment location defaults",
+    "submit_arrhenius.slurm requires explicit account and uses submission directory instead of a personal absolute path",
+    "Default NVT durations were reduced to 10+10 ps after the measured CPU benchmark; both short validation jobs supplied their own explicit durations"
+  ],
+  "scope_limitations": [
+    "Portable wrapper/template changes are locally checked only; original cluster checks identify their saved inputs separately",
+    "No 300 K thermal equilibrium, long-time single-domain stability, spectral convergence, experimental agreement, or production release is established",
+    "No i-PI process-lifecycle test or remote LUMI/Dardel validation",
+    "No standing execution budget or production authorization is created by these records"
+  ]
+}

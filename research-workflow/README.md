@@ -18,12 +18,25 @@ It does not replace either Studio runtime or any existing MD launch script.
 - Fetch-only synchronization that never edits the active checkout.
 
 The [Phase A inventory](docs/inventory-2026-10-21.md) records the actual findings.
-Both SSH probes failed authentication. Site modules/containers in the Studio
+Both LUMI/Dardel SSH probes failed authentication. Site modules/containers in the Studio
 are templates, not evidence of installed software or working MD launches.
 No cluster submission, promotion, rollback, scheduler monitoring, background
 coordinator, conflict-repair service, or production command is installed.
 The configuration deliberately leaves all execution flags disabled and budgets
 unset. Changing a flag cannot enable those unimplemented capabilities.
+
+The subsequent [Arrhenius BTO experiment](experiments/bto-single-domain/README.md)
+preserves the small minimization/NVT inputs, trajectory tools, environment lock,
+and a portable manual submission template. Its [evidence record](docs/bto-single-domain-arrhenius-2026-10-21.json)
+identifies two completed, bounded Slurm checks, including 25,000 atoms. This is
+standalone LAMMPS evidence, separate from the pending LUMI/Dardel i-PI lifecycle
+work. The adapted submission template has not itself been submitted. No generic
+workflow release or production activation follows from these checks.
+
+Resume the record-maintenance task with
+`./rw context --task bto-single-domain --site arrhenius`. Its task identity is
+`local` because it updates repository records; its physics evidence and scoped
+lessons explicitly identify `arrhenius`.
 
 ## Start a task
 

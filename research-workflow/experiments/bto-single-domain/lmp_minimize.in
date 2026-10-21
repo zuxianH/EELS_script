@@ -1,0 +1,69 @@
+# Five-atom periodic cell on the +x tetragonal branch, followed by replication
+# in lmp_nvt.in. Defaults can be overridden using LAMMPS -var arguments.
+# This is a constrained-symmetry 0 K preparation, not a 300 K NPT calculation.
+variable model index BTO_pbesol_final_compressed.pb
+variable outdir index results/minimization
+variable relax_box index 1
+variable ftol index 1.0e-6
+variable maxiter index 5000
+variable maxeval index 50000
+variable cycles index 3
+# The installed lmp launcher automatically loads the DeePMD plugin.
+# Paths passed to this input must not contain whitespace.
+
+units metal
+atom_style atomic
+boundary p p p
+
+# User-requested original starting structure. Initial lengths are
+# 4.367, 3.97, 3.97 A; the initial +x Ti-to-six-O-center offset is 0.4367 A.
+# These are starting values and are allowed to relax during minimization.
+lattice custom 3.97 &
+        a1 1.1 0.0 0.0 a2 0.0 1.0 0.0 a3 0.0 0.0 1.0 &
+        basis 0.25 0.25 0.25 &
+        basis 0.85 0.75 0.75 &
+        basis 0.75 0.75 0.25 &
+        basis 0.75 0.25 0.75 &
+        basis 0.25 0.75 0.75
+region cell block 0 1 0 1 0 1 units lattice
+create_box 3 cell
+create_atoms 1 box basis 1 1 basis 2 2 basis 3 3 basis 4 3 basis 5 3
+mass 1 137.327
+mass 2 47.867
+mass 3 15.999
+
+pair_style deepmd ${model}
+pair_coeff * * Ba Ti O
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+thermo 50
+thermo_style custom step atoms pe press pxx pyy pzz lx ly lz fmax fnorm vol
+thermo_modify norm no flush yes format float %.12g
+
+# Preserve the tetragonal branch only during minimization: all species can
+# relax along x; transverse coordinates remain on their symmetry sites.
+# A five-atom periodic cell cannot contain distinct polarization domains.
+fix tetragonal all setforce NULL 0.0 0.0
+min_style cg
+min_modify dmax 0.05 line quadratic
+minimize 0.0 ${ftol} ${maxiter} ${maxeval}
+
+# Optional zero-stress cell optimization. y,z lengths are coupled so the
+# transverse axes remain equivalent. 0 K lengths need not equal 300 K ones.
+if "${relax_box} == 1" then &
+   "fix cellrelax all box/relax x 0.0 y 0.0 z 0.0 couple yz vmax 0.001"
+variable cycle loop ${cycles}
+label relax_again
+minimize 0.0 ${ftol} ${maxiter} ${maxeval}
+next cycle
+jump SELF relax_again
+if "${relax_box} == 1" then "unfix cellrelax"
+unfix tetragonal
+
+# Report physical forces after removing the symmetry force projection.
+run 0
+write_data ${outdir}/minimized_cell.data nocoeff
+write_dump all custom ${outdir}/minimized_cell.lammpstrj &
+           id type x y z modify sort id format float %.15g
+print "Minimized cell lengths (A): $(lx:%.12g) $(ly:%.12g) $(lz:%.12g)"
+print "Unprojected maximum atomic force component (eV/A): $(fmax:%.12g)"

@@ -1,0 +1,55 @@
+# Replicate a minimized five-atom cell, equilibrate at fixed volume, then
+# save a uniformly sampled trajectory. All atoms move freely in this stage.
+variable model index BTO_pbesol_final_compressed.pb
+variable cellfile index results/minimization/minimized_cell.data
+variable outdir index results/nvt
+variable nx index 10
+variable ny index 10
+variable nz index 50
+variable temperature index 300.0
+variable seed index 299792458
+variable dt index 0.001
+variable equil_steps index 10000
+variable prod_steps index 10000
+variable dump_every index 10
+variable equil_dump_every index 1000
+# The installed lmp launcher automatically loads the DeePMD plugin.
+# Paths passed to this input must not contain whitespace.
+
+units metal
+atom_style atomic
+boundary p p p
+read_data ${cellfile}
+replicate ${nx} ${ny} ${nz}
+pair_style deepmd ${model}
+pair_coeff * * Ba Ti O
+neighbor 2.0 bin
+neigh_modify every 1 delay 0 check yes
+timestep ${dt}
+reset_timestep 0
+velocity all create ${temperature} ${seed} mom yes rot no dist gaussian
+fix thermostat all nvt temp ${temperature} ${temperature} 0.1
+thermo 100
+thermo_style custom step time atoms temp pe ke etotal press pxx pyy pzz lx ly lz
+thermo_modify norm no flush yes format float %.12g
+
+# Sparse equilibration snapshots for spatial domain checks.
+dump eq all custom ${equil_dump_every} ${outdir}/equilibration.lammpstrj &
+     id type element x y z vx vy vz ix iy iz
+dump_modify eq sort id element Ba Ti O format float %.15g first yes
+run ${equil_steps}
+undump eq
+write_data ${outdir}/equilibrated_supercell.data nocoeff
+
+# Time zero here is the start of the production window, after equilibration.
+reset_timestep 0
+dump prod all custom ${dump_every} ${outdir}/production.lammpstrj &
+     id type element x y z vx vy vz ix iy iz
+dump_modify prod sort id element Ba Ti O format float %.15g first yes
+restart 10000 ${outdir}/restart_a ${outdir}/restart_b
+run ${prod_steps}
+write_restart ${outdir}/final.restart
+write_data ${outdir}/final_supercell.data nocoeff
+undump prod
+unfix thermostat
+print "Saved frame interval (ps): $(v_dt*v_dump_every:%.12g)"
