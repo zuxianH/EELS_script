@@ -38,7 +38,7 @@
   "workflow": {
     "path": "../research-workflow",
     "repository": "https://github.com/zuxianH/research-workflow.git",
-    "commit": "9ef74e4dd97f8448e516a58b7d509a4dd286d876"
+    "commit": "b0801f307dcc8394787117b788e994054dd4e0d4"
   },
   "knowledge": {
     "path": "../research-knowledge",

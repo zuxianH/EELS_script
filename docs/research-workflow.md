@@ -55,3 +55,28 @@ independent of these folder moves.
 
 See the [shared tool guide](https://github.com/zuxianH/research-workflow) and
 [knowledge repository](https://github.com/zuxianH/research-knowledge) for commands.
+
+## Research skills
+
+The shared repository now includes research-task and research-handover skills.
+Their canonical files stay in research-workflow/skills/. On each computer, run
+`python3 ../research-workflow/scripts/install_skills.py --target both` to create
+non-overwriting personal discovery links for Codex and local Claude Code.
+Use --target codex or --target claude for one assistant.
+
+From this configured project, in Codex:
+
+```text
+$research-task Resume my BTO analysis on Arrhenius.
+$research-handover Prepare a local handover for this task.
+```
+
+In local Claude Code use /research-task or /research-handover. Refresh or restart
+an existing session if its skill picker has not refreshed. Personal local skills
+need separate installation for cloud sessions and other machines.
+
+Task preparation uses prepare-only mode for the current assistant; it does not
+launch another assistant. A local handover is published only when requested or
+already authorized. Publication verifies source and knowledge refs separately;
+the immutable handover record's publication text is creation-time information,
+while receipts and actual remote refs establish its current availability.
