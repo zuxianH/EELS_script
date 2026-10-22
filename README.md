@@ -1,9 +1,11 @@
 # EELS scripts
 
-The [research workflow](research-workflow/README.md) provides shared Codex/Claude
-instructions, isolated task worktrees, checkpoints and handovers. Start with
-`./rw status`. Cluster validation and deployment are pending authenticated
-inventory; the existing Studio and simulation entry points are unchanged.
+The [research workflow guide](docs/research-workflow.md) explains the shared
+[tools](https://github.com/zuxianH/research-workflow) and
+[knowledge](https://github.com/zuxianH/research-knowledge) repositories.
+Clone them as siblings of this repository, then run `./rw status`.
+Scientific BTO preparation and restart tools are in
+[experiments/bto-single-domain](experiments/bto-single-domain/README.md).
 
 Tools for preparing molecular-dynamics trajectories, running a GPU TACAW
 calculation, and correcting its output.

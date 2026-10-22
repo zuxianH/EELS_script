@@ -1,0 +1,47 @@
+{
+  "schema_version": 2,
+  "project": "eels-script",
+  "sites": {
+    "local": {
+      "scheduler": "local",
+      "execution_enabled": false,
+      "active_release": null
+    },
+    "lumi": {
+      "scheduler": "slurm",
+      "ssh_alias": "lumi",
+      "execution_enabled": false,
+      "active_release": null,
+      "verification_budget": null
+    },
+    "dardel": {
+      "scheduler": "slurm",
+      "ssh_alias": "dardel",
+      "execution_enabled": false,
+      "active_release": null,
+      "verification_budget": null
+    },
+    "arrhenius": {
+      "scheduler": "slurm",
+      "execution_enabled": false,
+      "active_release": null,
+      "verification_budget": null
+    }
+  },
+  "automation": {
+    "cluster_submission_enabled": false,
+    "production_submission_enabled": false,
+    "promotion_enabled": false,
+    "reason": "Automated submission and promotion are not implemented. LUMI/Dardel inventory remains blocked by SSH authentication. Manual Arrhenius BTO checks do not establish a workflow release or a recurring verification budget."
+  },
+  "project_repository": "https://github.com/zuxianH/EELS_script.git",
+  "workflow": {
+    "path": "../research-workflow",
+    "repository": "https://github.com/zuxianH/research-workflow.git",
+    "commit": "9ef74e4dd97f8448e516a58b7d509a4dd286d876"
+  },
+  "knowledge": {
+    "path": "../research-knowledge",
+    "repository": "https://github.com/zuxianH/research-knowledge.git"
+  }
+}

@@ -1,0 +1,642 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-22",
+  "source_repository": "https://github.com/zuxianH/EELS_script",
+  "source_commit": "9e79e9a558b15bfedf7b2b4bdd6c134d2df8f303",
+  "history": "Original commits remain reachable as ancestors in EELS_script; shared repositories import the extracted snapshot with this provenance.",
+  "files": [
+    {
+      "old_path": "research-knowledge/README.md",
+      "repository": "research-knowledge",
+      "path": "README.md",
+      "original_sha256": "e8fa8a2c9ccaa4d25feedf1bcb53d723891ac7d87a4b0b206f55d73401d5880d",
+      "migrated_sha256": "58c8da7f02a7a57371d7b5b00eee0b4749ef635d5ddc198e8f383021c813183e",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/events/048956ef448a4982b44a93a53751b35e.json",
+      "repository": "research-knowledge",
+      "path": "events/048956ef448a4982b44a93a53751b35e.json",
+      "original_sha256": "c7a3a630a8004e1b59de4100cc2fbd2d525e8cb807a0f067f0f8029f4fb96d02",
+      "migrated_sha256": "c7a3a630a8004e1b59de4100cc2fbd2d525e8cb807a0f067f0f8029f4fb96d02",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/09b2095434884b009336ed71b0c9b9e5.json",
+      "repository": "research-knowledge",
+      "path": "events/09b2095434884b009336ed71b0c9b9e5.json",
+      "original_sha256": "392e06b170d65adf68775680e5f2941722534aa58169a622465d6297ae827049",
+      "migrated_sha256": "392e06b170d65adf68775680e5f2941722534aa58169a622465d6297ae827049",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/13d15691185946b586523c6eb6d7ffdb.json",
+      "repository": "research-knowledge",
+      "path": "events/13d15691185946b586523c6eb6d7ffdb.json",
+      "original_sha256": "33d40d033a5ebfa0c674e0fe98c752f21b59c2a7b297c30cea8c99f6d4137996",
+      "migrated_sha256": "33d40d033a5ebfa0c674e0fe98c752f21b59c2a7b297c30cea8c99f6d4137996",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/19dfd0d0f23140d1bd984a89d948019b.json",
+      "repository": "research-knowledge",
+      "path": "events/19dfd0d0f23140d1bd984a89d948019b.json",
+      "original_sha256": "ede0e9bcc9dcbcfece47d2141ac3ad9021119502be82d618589ee69c11e73413",
+      "migrated_sha256": "ede0e9bcc9dcbcfece47d2141ac3ad9021119502be82d618589ee69c11e73413",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/2308fc720cec42e3a5627864d7e28969.json",
+      "repository": "research-knowledge",
+      "path": "events/2308fc720cec42e3a5627864d7e28969.json",
+      "original_sha256": "01a573fc286079ec2a5748428fe05cfb20c031a60fb6a74bfecd0b723508f3f2",
+      "migrated_sha256": "01a573fc286079ec2a5748428fe05cfb20c031a60fb6a74bfecd0b723508f3f2",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/329d5edd94ea41eebdd44ca7cd2dfd7f.json",
+      "repository": "research-knowledge",
+      "path": "events/329d5edd94ea41eebdd44ca7cd2dfd7f.json",
+      "original_sha256": "00defe8d3c6643a65c53e4a6a7638514c424853e5970318489130a49ef01f207",
+      "migrated_sha256": "00defe8d3c6643a65c53e4a6a7638514c424853e5970318489130a49ef01f207",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/382fad50601f4e4a8ecc752765873bef.json",
+      "repository": "research-knowledge",
+      "path": "events/382fad50601f4e4a8ecc752765873bef.json",
+      "original_sha256": "a7930a5c2a23af616fb53385fb3fe8289a7a415bef3f1b346fcfdc5c545159be",
+      "migrated_sha256": "a7930a5c2a23af616fb53385fb3fe8289a7a415bef3f1b346fcfdc5c545159be",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/3d112491ffa547dc98f880d74f2dfc1e.json",
+      "repository": "research-knowledge",
+      "path": "events/3d112491ffa547dc98f880d74f2dfc1e.json",
+      "original_sha256": "f9613249b202572a7efe3108547461586020ed49a7c7b20de286d4b9d7f1b059",
+      "migrated_sha256": "f9613249b202572a7efe3108547461586020ed49a7c7b20de286d4b9d7f1b059",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/5603c5dfc0544e1ea8797615f0adc70c.json",
+      "repository": "research-knowledge",
+      "path": "events/5603c5dfc0544e1ea8797615f0adc70c.json",
+      "original_sha256": "399bd074cbf9a887f6b7a325d9aaa6287f494ce68a781e7342808812ddb89a2e",
+      "migrated_sha256": "399bd074cbf9a887f6b7a325d9aaa6287f494ce68a781e7342808812ddb89a2e",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/5f7655efc0ea418893cd88b62e671393.json",
+      "repository": "research-knowledge",
+      "path": "events/5f7655efc0ea418893cd88b62e671393.json",
+      "original_sha256": "a0ccba7cb718c408372caccb88044ec8aedd856249da8f18a48f9ca761e4c83d",
+      "migrated_sha256": "a0ccba7cb718c408372caccb88044ec8aedd856249da8f18a48f9ca761e4c83d",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/89ad0a8121a84cfaa9755a3c4a3b3ab4.json",
+      "repository": "research-knowledge",
+      "path": "events/89ad0a8121a84cfaa9755a3c4a3b3ab4.json",
+      "original_sha256": "4bdee1f19cc34f00eb2d5c411035e1c05990dcfd6681d5e2ecbc3908b3b7aa6a",
+      "migrated_sha256": "4bdee1f19cc34f00eb2d5c411035e1c05990dcfd6681d5e2ecbc3908b3b7aa6a",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/89d3aa568cc2488eb7edb790bfab71db.json",
+      "repository": "research-knowledge",
+      "path": "events/89d3aa568cc2488eb7edb790bfab71db.json",
+      "original_sha256": "b64fedf42cff193343331b235c85992b648ce4a941ea340cea4caeb64d73e239",
+      "migrated_sha256": "b64fedf42cff193343331b235c85992b648ce4a941ea340cea4caeb64d73e239",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/a29f542739f54156916845b922a49e32.json",
+      "repository": "research-knowledge",
+      "path": "events/a29f542739f54156916845b922a49e32.json",
+      "original_sha256": "4bbfb5146e70d33eca6f0c7253f1f1fbf060e9edc524e7f41aa104055b1a351d",
+      "migrated_sha256": "4bbfb5146e70d33eca6f0c7253f1f1fbf060e9edc524e7f41aa104055b1a351d",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/a9e959b4040246f395c4c09515af3932.json",
+      "repository": "research-knowledge",
+      "path": "events/a9e959b4040246f395c4c09515af3932.json",
+      "original_sha256": "1ede17005e81773f39bc2bb65464f1fa1244488fb8dcdb84a279d7067963079a",
+      "migrated_sha256": "1ede17005e81773f39bc2bb65464f1fa1244488fb8dcdb84a279d7067963079a",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/b45e481fd25a4df4b936ba4152df93e1.json",
+      "repository": "research-knowledge",
+      "path": "events/b45e481fd25a4df4b936ba4152df93e1.json",
+      "original_sha256": "425eca8833d1e3f9cc7e552835e02262a49099db5a09679c5a2c65718d05f140",
+      "migrated_sha256": "425eca8833d1e3f9cc7e552835e02262a49099db5a09679c5a2c65718d05f140",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/d49a5c80b69841f2b7a211fcb92df031.json",
+      "repository": "research-knowledge",
+      "path": "events/d49a5c80b69841f2b7a211fcb92df031.json",
+      "original_sha256": "68153fa19627b68f04520a89a057301043e4078b7db094541aca586f9e0bcda9",
+      "migrated_sha256": "68153fa19627b68f04520a89a057301043e4078b7db094541aca586f9e0bcda9",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/e8f98506b7754f028c9fbfcd5d28a1e0.json",
+      "repository": "research-knowledge",
+      "path": "events/e8f98506b7754f028c9fbfcd5d28a1e0.json",
+      "original_sha256": "f97a16b23905c8c8bb9f2b16fb5c9f924e7665f5ecda584ae6942557b4aa3112",
+      "migrated_sha256": "f97a16b23905c8c8bb9f2b16fb5c9f924e7665f5ecda584ae6942557b4aa3112",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/ec3f88e020404ddab11349d36655f3dd.json",
+      "repository": "research-knowledge",
+      "path": "events/ec3f88e020404ddab11349d36655f3dd.json",
+      "original_sha256": "cf8f5feb47e3ffb4499397ae0a4c8e1d534687e642e578133a38c6c7026edec8",
+      "migrated_sha256": "cf8f5feb47e3ffb4499397ae0a4c8e1d534687e642e578133a38c6c7026edec8",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/f673c3f443fc466091d2fee9994db3f5.json",
+      "repository": "research-knowledge",
+      "path": "events/f673c3f443fc466091d2fee9994db3f5.json",
+      "original_sha256": "721a692e3924c7282bca873c9bdd9aea29252f9f5e448634472407d8368ca519",
+      "migrated_sha256": "721a692e3924c7282bca873c9bdd9aea29252f9f5e448634472407d8368ca519",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/events/fc337b7a07b64123bf560c7ac8686152.json",
+      "repository": "research-knowledge",
+      "path": "events/fc337b7a07b64123bf560c7ac8686152.json",
+      "original_sha256": "3c9b9e6caae2adfe7916393d3c82a5ed16e495c02c5efc682ba6f8394bf5f619",
+      "migrated_sha256": "3c9b9e6caae2adfe7916393d3c82a5ed16e495c02c5efc682ba6f8394bf5f619",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/lessons/README.md",
+      "repository": "research-knowledge",
+      "path": "lessons/README.md",
+      "original_sha256": "f1adc8c41852700d5e5bc2501ba6d75ed17ce7610ddc0ec534beebdfa7cc8b84",
+      "migrated_sha256": "f1adc8c41852700d5e5bc2501ba6d75ed17ce7610ddc0ec534beebdfa7cc8b84",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/lessons/bto-single-domain-preparation-arrhenius.json",
+      "repository": "research-knowledge",
+      "path": "lessons/bto-single-domain-preparation-arrhenius.json",
+      "original_sha256": "2c1be6b610b5f6292675bfd96d213d8efb00144fa25250b1199b0822950032c3",
+      "migrated_sha256": "2c1be6b610b5f6292675bfd96d213d8efb00144fa25250b1199b0822950032c3",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/lessons/periodic-tio6-center-and-export-arrhenius.json",
+      "repository": "research-knowledge",
+      "path": "lessons/periodic-tio6-center-and-export-arrhenius.json",
+      "original_sha256": "ffe74d8c5aa2029229cf77f8a60423832183e34ad644a5363be22ad0585846d2",
+      "migrated_sha256": "ffe74d8c5aa2029229cf77f8a60423832183e34ad644a5363be22ad0585846d2",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/policies/operating-agreements.md",
+      "repository": "research-knowledge",
+      "path": "policies/operating-agreements.md",
+      "original_sha256": "0e392072a22ca36b7a75fb54246d56206c5e169aee936db37deac345c2b12679",
+      "migrated_sha256": "0e392072a22ca36b7a75fb54246d56206c5e169aee936db37deac345c2b12679",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/projects/bto-single-domain.md",
+      "repository": "research-knowledge",
+      "path": "projects/bto-single-domain.md",
+      "original_sha256": "41d56c5cbf90add74952a899c64c0231e02fd42cbe5f53a03949b7cb5e64d252",
+      "migrated_sha256": "8b7d89f899fad0de005533e063ecf12ef6214c3fbc16fe7c8a98ec27674f55f5",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/projects/eels-script.md",
+      "repository": "research-knowledge",
+      "path": "projects/eels-script.md",
+      "original_sha256": "87584860226b5f03b6b602e6e83d67d2723520b23c214cb20e3d3039fec3b3fa",
+      "migrated_sha256": "377f647aa3f8e98644788729d293622d55d74f2018394b16ea79f5942d33f337",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/schemas/event.schema.json",
+      "repository": "research-knowledge",
+      "path": "schemas/event.schema.json",
+      "original_sha256": "5d148afa9f80b09d2474ff81dcaf4c172ad18b34eb8cd167d8add5285510c44a",
+      "migrated_sha256": "5d148afa9f80b09d2474ff81dcaf4c172ad18b34eb8cd167d8add5285510c44a",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/schemas/task.schema.json",
+      "repository": "research-knowledge",
+      "path": "schemas/task.schema.json",
+      "original_sha256": "4d3257dc812ac1cec7dd751bed2597de56f2ad581c2fcb69d81fd226add23889",
+      "migrated_sha256": "4d3257dc812ac1cec7dd751bed2597de56f2ad581c2fcb69d81fd226add23889",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/sites/README.md",
+      "repository": "research-knowledge",
+      "path": "sites/README.md",
+      "original_sha256": "d3f56ee799e78aaa691ff5d5e1667aaa03915a755c41648d3349a23a2f438f51",
+      "migrated_sha256": "d3f56ee799e78aaa691ff5d5e1667aaa03915a755c41648d3349a23a2f438f51",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/sites/arrhenius.md",
+      "repository": "research-knowledge",
+      "path": "sites/arrhenius.md",
+      "original_sha256": "01973b680c1f0256cf09af904119325734cc34dc33e78bd616f6fc9a3700a52a",
+      "migrated_sha256": "01973b680c1f0256cf09af904119325734cc34dc33e78bd616f6fc9a3700a52a",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-duration-50ps/README.md",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-duration-50ps/README.md",
+      "original_sha256": "59d5eaac077843330ff620d7473849b8aaffe0ad07ce74db5534454bea1ac483",
+      "migrated_sha256": "54d052d75e014443c01297774538346a4ea3b93e35995038a829d5af36abbfe6",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-duration-50ps/handover-d49a5c80b69841f2b7a211fcb92df031.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-duration-50ps/handover-d49a5c80b69841f2b7a211fcb92df031.json",
+      "original_sha256": "68153fa19627b68f04520a89a057301043e4078b7db094541aca586f9e0bcda9",
+      "migrated_sha256": "68153fa19627b68f04520a89a057301043e4078b7db094541aca586f9e0bcda9",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-duration-50ps/task.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-duration-50ps/task.json",
+      "original_sha256": "653b9dbedbbff7c5eea48c28bb6b4cf475a3b4a2f5b85178ec5f288fb03e6ee3",
+      "migrated_sha256": "653b9dbedbbff7c5eea48c28bb6b4cf475a3b4a2f5b85178ec5f288fb03e6ee3",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-long-nvt/README.md",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-long-nvt/README.md",
+      "original_sha256": "3f2e4d2cebcdf9b966d516b891e515b83578780b9677e97cd6d0db0108d71a85",
+      "migrated_sha256": "fe90f440aeb3cb836febf9556bf809138b5b8e65d9f34f4f7f61da79eeec51c3",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-long-nvt/handover-19dfd0d0f23140d1bd984a89d948019b.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-long-nvt/handover-19dfd0d0f23140d1bd984a89d948019b.json",
+      "original_sha256": "ede0e9bcc9dcbcfece47d2141ac3ad9021119502be82d618589ee69c11e73413",
+      "migrated_sha256": "ede0e9bcc9dcbcfece47d2141ac3ad9021119502be82d618589ee69c11e73413",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-long-nvt/handover-329d5edd94ea41eebdd44ca7cd2dfd7f.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-long-nvt/handover-329d5edd94ea41eebdd44ca7cd2dfd7f.json",
+      "original_sha256": "00defe8d3c6643a65c53e4a6a7638514c424853e5970318489130a49ef01f207",
+      "migrated_sha256": "00defe8d3c6643a65c53e4a6a7638514c424853e5970318489130a49ef01f207",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-long-nvt/task.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-long-nvt/task.json",
+      "original_sha256": "5a1c6c0da77c26b23ae80f404d5f699c146ae5ea051e9eb6d8f83d296c4850bd",
+      "migrated_sha256": "5a1c6c0da77c26b23ae80f404d5f699c146ae5ea051e9eb6d8f83d296c4850bd",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-sampling-5fs/README.md",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-sampling-5fs/README.md",
+      "original_sha256": "4f6e3f660770f441226aa970fc2ccc1b613096aefc36f91599a18c3844d11800",
+      "migrated_sha256": "d3432840130038b9f8abaf7a804267b4104f5b257d0e4841fe62585151015909",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-sampling-5fs/handover-13d15691185946b586523c6eb6d7ffdb.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-sampling-5fs/handover-13d15691185946b586523c6eb6d7ffdb.json",
+      "original_sha256": "33d40d033a5ebfa0c674e0fe98c752f21b59c2a7b297c30cea8c99f6d4137996",
+      "migrated_sha256": "33d40d033a5ebfa0c674e0fe98c752f21b59c2a7b297c30cea8c99f6d4137996",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-sampling-5fs/task.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-sampling-5fs/task.json",
+      "original_sha256": "ae823f5259d9708b98e0bc123282868d5ccbc340aadfa4132e987e7cdb75efd7",
+      "migrated_sha256": "ae823f5259d9708b98e0bc123282868d5ccbc340aadfa4132e987e7cdb75efd7",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-single-domain/README.md",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-single-domain/README.md",
+      "original_sha256": "83ed117aec52e78f714e3fdbe42a9d64c4575d2f5131b522052f466a290b3dbe",
+      "migrated_sha256": "7a0ce4693d3483f51dd84826daa87198e609ed2eab4298235a4d450ff14fb32c",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-single-domain/handover-2308fc720cec42e3a5627864d7e28969.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-single-domain/handover-2308fc720cec42e3a5627864d7e28969.json",
+      "original_sha256": "01a573fc286079ec2a5748428fe05cfb20c031a60fb6a74bfecd0b723508f3f2",
+      "migrated_sha256": "01a573fc286079ec2a5748428fe05cfb20c031a60fb6a74bfecd0b723508f3f2",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/bto-single-domain/task.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/bto-single-domain/task.json",
+      "original_sha256": "af60ed77987078739fde5fc3e2b86d27fef2e64c58822094ec024bd626d23740",
+      "migrated_sha256": "af60ed77987078739fde5fc3e2b86d27fef2e64c58822094ec024bd626d23740",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/workflow-bootstrap/handover-f673c3f443fc466091d2fee9994db3f5.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/workflow-bootstrap/handover-f673c3f443fc466091d2fee9994db3f5.json",
+      "original_sha256": "721a692e3924c7282bca873c9bdd9aea29252f9f5e448634472407d8368ca519",
+      "migrated_sha256": "721a692e3924c7282bca873c9bdd9aea29252f9f5e448634472407d8368ca519",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-knowledge/tasks/workflow-bootstrap/task.json",
+      "repository": "research-knowledge",
+      "path": "tasks/eels-script/workflow-bootstrap/task.json",
+      "original_sha256": "f8352992af1b9b5f90287fa6c105dec4d61a9de37ba5d369ad1cb73211a8dc74",
+      "migrated_sha256": "f8352992af1b9b5f90287fa6c105dec4d61a9de37ba5d369ad1cb73211a8dc74",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/README.md",
+      "repository": "research-workflow",
+      "path": "README.md",
+      "original_sha256": "bb24492b6ed9f111b9c4f68c6e0f9df8c1fa8af9deb395e46b4ab1e96171254c",
+      "migrated_sha256": "24a8735432471b933a999065d8b42d902df2ed23b0e9e0502e0c0b38249f7545",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-workflow/config.json",
+      "repository": "EELS_script",
+      "path": ".research-workflow.json",
+      "original_sha256": "d9417adbacf2444f74b4dbcc92e00d693e892180be527e663be2d67e5bdeeb95",
+      "migrated_sha256": "42a245dd57eb5accc88c8d9e963bb700c2dc63400ac9f0db509e9206e460ff10",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-workflow/docs/bto-duration-50ps-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-duration-50ps-2026-10-21.json",
+      "original_sha256": "929a5e1fbd77cd96c6ed7cb82a13fcd90f3308c1b5d409806446f264767537e0",
+      "migrated_sha256": "929a5e1fbd77cd96c6ed7cb82a13fcd90f3308c1b5d409806446f264767537e0",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/bto-long-nvt-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-long-nvt-2026-10-21.json",
+      "original_sha256": "fe1ceb56ba8007940629d49b0c58adffb5dc9b42c3ed83ea04cb455874d818e2",
+      "migrated_sha256": "fe1ceb56ba8007940629d49b0c58adffb5dc9b42c3ed83ea04cb455874d818e2",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/bto-long-nvt-submission-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-long-nvt-submission-2026-10-21.json",
+      "original_sha256": "46633802fb4ba5282816492d9abcf581b35ab5eb43181e83db15e57d12c9701a",
+      "migrated_sha256": "46633802fb4ba5282816492d9abcf581b35ab5eb43181e83db15e57d12c9701a",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/bto-manual-single-job-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-manual-single-job-2026-10-21.json",
+      "original_sha256": "60c9bda86e144683cd1655a15e7733b1d0474c39342ab365a2818219f11a4a06",
+      "migrated_sha256": "60c9bda86e144683cd1655a15e7733b1d0474c39342ab365a2818219f11a4a06",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/bto-sampling-5fs-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-sampling-5fs-2026-10-21.json",
+      "original_sha256": "8c1d0dd9b6564b45c00f47ef7a711ec66b5bfc128e3c3afc159ccb63e4c9136d",
+      "migrated_sha256": "8c1d0dd9b6564b45c00f47ef7a711ec66b5bfc128e3c3afc159ccb63e4c9136d",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/bto-single-domain-arrhenius-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-single-domain-arrhenius-2026-10-21.json",
+      "original_sha256": "5351fbd6a73e8aaf68d53c6f7fa86d2fcfe51438ebe1a75d15e22d90de6cf300",
+      "migrated_sha256": "5351fbd6a73e8aaf68d53c6f7fa86d2fcfe51438ebe1a75d15e22d90de6cf300",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/bto-single-domain-record-validation-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/bto-single-domain-record-validation-2026-10-21.json",
+      "original_sha256": "1974e4280173c0b75d41faca63bd8415d7492485c22578a6172b73fcb6f5a966",
+      "migrated_sha256": "1974e4280173c0b75d41faca63bd8415d7492485c22578a6172b73fcb6f5a966",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/github-publication-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/github-publication-2026-10-21.json",
+      "original_sha256": "0354f3937c87ceae56729ad5a4c328d93d6b7ad6f782f36091a8450c8637ca78",
+      "migrated_sha256": "0354f3937c87ceae56729ad5a4c328d93d6b7ad6f782f36091a8450c8637ca78",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/implementation-brief.md",
+      "repository": "research-workflow",
+      "path": "docs/implementation-brief.md",
+      "original_sha256": "9e12cfb70d90f97538bb256181fa8f14d4b99624a67f430a76c1e9061e1c2201",
+      "migrated_sha256": "9e12cfb70d90f97538bb256181fa8f14d4b99624a67f430a76c1e9061e1c2201",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/inventory-2026-10-21.md",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/inventory-2026-10-21.md",
+      "original_sha256": "9e28dc74f06b9a5d17fddcf1e6a4d30f842dae76d180065f20c187c734acb341",
+      "migrated_sha256": "9e28dc74f06b9a5d17fddcf1e6a4d30f842dae76d180065f20c187c734acb341",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/docs/validation-2026-10-21.json",
+      "repository": "EELS_script",
+      "path": "docs/workflow-history/validation-2026-10-21.json",
+      "original_sha256": "59a18c1f621617fe3d3573587202b394e489c16ed4d4980ac6072488132126e0",
+      "migrated_sha256": "59a18c1f621617fe3d3573587202b394e489c16ed4d4980ac6072488132126e0",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/.gitignore",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/.gitignore",
+      "original_sha256": "f187de77acec61c735cc2ffdd1fc6cac3db2c3e4c4a785571c3ed48043116dfa",
+      "migrated_sha256": "f187de77acec61c735cc2ffdd1fc6cac3db2c3e4c4a785571c3ed48043116dfa",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/README.md",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/README.md",
+      "original_sha256": "8729426c024585e1975ef79f197e64101d74d2f9059d391e8c5d93fb8bd18063",
+      "migrated_sha256": "c0ebf3e6b75b12aae3ce507136dc709f4bf2bf64bb3d88e034cdf7e912fc0b44",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/README_segmented.md",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/README_segmented.md",
+      "original_sha256": "b55d27345cca8050334f2e65be85a20e73468a1843ba7394112b4c615abac8b9",
+      "migrated_sha256": "b55d27345cca8050334f2e65be85a20e73468a1843ba7394112b4c615abac8b9",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/check_restart.py",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/check_restart.py",
+      "original_sha256": "0111a2c8589a0101ba5d1ab9262f612233caa9530ee9220a556853b70674ce72",
+      "migrated_sha256": "0111a2c8589a0101ba5d1ab9262f612233caa9530ee9220a556853b70674ce72",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/env.sh",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/env.sh",
+      "original_sha256": "c610e2105477d33d3253f491a07b59970172176f64c4b77796050af418751098",
+      "migrated_sha256": "c610e2105477d33d3253f491a07b59970172176f64c4b77796050af418751098",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/install_deepmd.sh",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/install_deepmd.sh",
+      "original_sha256": "58b46baeefce21ea696dd657bdf11d9a1329168703d58bdfa95dad2363fd1096",
+      "migrated_sha256": "58b46baeefce21ea696dd657bdf11d9a1329168703d58bdfa95dad2363fd1096",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/lmp_minimize.in",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/lmp_minimize.in",
+      "original_sha256": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+      "migrated_sha256": "f06615f682e759d86ce1ef61021fc23d44abf62364857813eb6b793578ba8b91",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/lmp_nvt.in",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/lmp_nvt.in",
+      "original_sha256": "3d22784efa235b37552be60c323cb80d70247e1beb099ecf8f7a469ad51b0f73",
+      "migrated_sha256": "3d22784efa235b37552be60c323cb80d70247e1beb099ecf8f7a469ad51b0f73",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/lmp_segment.in",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/lmp_segment.in",
+      "original_sha256": "fa97885a31655ab4649b17398946ccd3f44c65643206806ed05a87f8556572e3",
+      "migrated_sha256": "fa97885a31655ab4649b17398946ccd3f44c65643206806ed05a87f8556572e3",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/requirements-runtime.lock",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/requirements-runtime.lock",
+      "original_sha256": "976fdff0b532fd7717e789e83fd8ce24a1f45fa03841c0be7765de5b7aeba644",
+      "migrated_sha256": "976fdff0b532fd7717e789e83fd8ce24a1f45fa03841c0be7765de5b7aeba644",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/run_workflow.py",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/run_workflow.py",
+      "original_sha256": "3826edc7e0eb6867de2aaa48715a4a196223b7f17c7da8fa058da8ba18f7fff9",
+      "migrated_sha256": "3826edc7e0eb6867de2aaa48715a4a196223b7f17c7da8fa058da8ba18f7fff9",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/segmented_nvt.py",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/segmented_nvt.py",
+      "original_sha256": "8bd3d441d145c694ad6369473c9f8fa5ca75c23dfd800911586b4a5904d42c3d",
+      "migrated_sha256": "8bd3d441d145c694ad6369473c9f8fa5ca75c23dfd800911586b4a5904d42c3d",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/submit_arrhenius.slurm",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/submit_arrhenius.slurm",
+      "original_sha256": "eb0b6eb651e397ed0dac838fda5188e6952c2e1aff067b8ca03d4bad7037ae54",
+      "migrated_sha256": "eb0b6eb651e397ed0dac838fda5188e6952c2e1aff067b8ca03d4bad7037ae54",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/submit_segment.slurm",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/submit_segment.slurm",
+      "original_sha256": "f8f61346868a70bcbc9a7149ae682929644fee5f5400a36adfa0607e7a26f115",
+      "migrated_sha256": "f8f61346868a70bcbc9a7149ae682929644fee5f5400a36adfa0607e7a26f115",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/test_segmented_nvt.py",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/test_segmented_nvt.py",
+      "original_sha256": "cd29244ca19e096ac3df2aca730b263894b81df2993187cfd6f1668d917b3dc8",
+      "migrated_sha256": "cd29244ca19e096ac3df2aca730b263894b81df2993187cfd6f1668d917b3dc8",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/test_trajectory_tools.py",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/test_trajectory_tools.py",
+      "original_sha256": "18c8693203934e27698578bd2b2b7ac8462b6f6aaa0095c8d675f524aa0b66cb",
+      "migrated_sha256": "18c8693203934e27698578bd2b2b7ac8462b6f6aaa0095c8d675f524aa0b66cb",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/experiments/bto-single-domain/trajectory_tools.py",
+      "repository": "EELS_script",
+      "path": "experiments/bto-single-domain/trajectory_tools.py",
+      "original_sha256": "01901cbed8386483a9e924d2d27e3730be336d34252c75e6560fb29048e77cae",
+      "migrated_sha256": "01901cbed8386483a9e924d2d27e3730be336d34252c75e6560fb29048e77cae",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/research_workflow/__init__.py",
+      "repository": "research-workflow",
+      "path": "research_workflow/__init__.py",
+      "original_sha256": "97118d703e550a48c6fed509680dba98d5b9f33884a06d73a1c4bbd662c06328",
+      "migrated_sha256": "97118d703e550a48c6fed509680dba98d5b9f33884a06d73a1c4bbd662c06328",
+      "content_changed": false
+    },
+    {
+      "old_path": "research-workflow/research_workflow/cli.py",
+      "repository": "research-workflow",
+      "path": "research_workflow/cli.py",
+      "original_sha256": "4d91e4d06a073789827b95cc93e7e0359141ce2efb66ca91051e8818e84dba36",
+      "migrated_sha256": "2ba073906b003a16f7b284f6f51eb05b61f957a68c1e7c11fd478e52e034e88e",
+      "content_changed": true
+    },
+    {
+      "old_path": "research-workflow/tests/test_workflow.py",
+      "repository": "research-workflow",
+      "path": "tests/test_workflow.py",
+      "original_sha256": "d1923825ec8253d23532abe7c20551418d33025fe6dc4a5ee53c81986d2d8b95",
+      "migrated_sha256": "3894bc08d4604f8748698f5eaaf87e754942e868910573ba8f653abedcbfbce3",
+      "content_changed": true
+    }
+  ],
+  "pinned_workflow_commit": "9ef74e4dd97f8448e516a58b7d509a4dd286d876"
+}

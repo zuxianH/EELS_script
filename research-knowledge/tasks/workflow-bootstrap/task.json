@@ -1,9 +1,0 @@
-{
-  "schema_version": 1,
-  "task_id": "workflow-bootstrap",
-  "project": "eels-script",
-  "goal": "Set up the local unified research workflow from the supplied brief; preserve existing science code and record cluster prerequisites honestly.",
-  "site": "local",
-  "baseline_commit": "e7a73d27dd37bbd2aa3f86b606fa87b52ef428e4",
-  "created_at": "2026-10-21T19:05:18.087767+00:00"
-}

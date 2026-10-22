@@ -124,4 +124,4 @@ and conversion regression tests passed. The relaxed seed is approximately
 These are short execution checks. They do not establish 300 K equilibration,
 long-time single-domain stability, agreement with a 13 pm experimental value,
 spectral convergence, i-PI shutdown behavior, or a production release. See the
-[task handover](../../../research-knowledge/tasks/bto-single-domain/README.md).
+[task handover](https://github.com/zuxianH/research-knowledge/blob/main/tasks/eels-script/bto-single-domain/README.md).

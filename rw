@@ -1,10 +1,28 @@
 #!/usr/bin/env python3
-"""Repository-local research workflow entry point; no installation required."""
+"""Load this project's pinned workflow from its separate checkout."""
+import json
+import os
 from pathlib import Path
+import subprocess
 import sys
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "research-workflow"))
-from research_workflow.cli import main
+
+def run():
+    project = Path(__file__).resolve().parent
+    settings = json.loads((project / ".research-workflow.json").read_text())
+    common = Path(subprocess.check_output(
+        ["git", "-C", str(project), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+        text=True).strip())
+    workflow = (common.parent / Path(os.environ.get("RW_WORKFLOW_PATH") or settings["workflow"]["path"]).expanduser()).resolve()
+    if not (workflow / "research_workflow/cli.py").is_file():
+        raise ValueError(f"Shared workflow checkout missing at {workflow}. Clone {settings['workflow']['repository']} there.")
+    sys.path.insert(0, str(workflow))
+    from research_workflow.cli import main
+    return main(["--repo", str(project), *sys.argv[1:]])
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(run())
+    except (OSError, ValueError, KeyError, subprocess.CalledProcessError) as exc:
+        print(f"rw: {exc}", file=sys.stderr)
+        raise SystemExit(1)
