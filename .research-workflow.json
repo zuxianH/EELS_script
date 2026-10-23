@@ -34,11 +34,11 @@
     "promotion_enabled": false,
     "reason": "Automated submission and promotion are not implemented. LUMI/Dardel inventory remains blocked by SSH authentication. Manual Arrhenius BTO checks do not establish a workflow release or a recurring verification budget."
   },
-  "project_repository": "https://github.com/zuxianH/EELS_script.git",
+  "project_repository": "https://github.com/zuxianH/research-script.git",
   "workflow": {
     "path": "../research-workflow",
     "repository": "https://github.com/zuxianH/research-workflow.git",
-    "commit": "b0801f307dcc8394787117b788e994054dd4e0d4"
+    "commit": "01f3a8ca70ef69161b827e768559d472d7bb9e07"
   },
   "knowledge": {
     "path": "../research-knowledge",

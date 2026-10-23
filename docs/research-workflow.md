@@ -4,7 +4,7 @@ The repositories are independent siblings:
 
 ```text
 Documents/
-  EELS_script/         scientific code and experiments
+  research-script/         scientific code and experiments
   research-workflow/   generic launcher and tests
   research-knowledge/  scoped records and handovers
 ```
@@ -16,7 +16,7 @@ check out the pinned commit before using the launcher. Absolute or custom local
 paths can be set through RW_WORKFLOW_PATH and RW_KNOWLEDGE_PATH; the code pin
 still applies. The same resolution works in task worktrees.
 
-From EELS_script:
+From research-script:
 
 ```bash
 ./rw status
